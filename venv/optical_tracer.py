@@ -43,14 +43,6 @@ class Point:
         return {coord: getattr(self, '_'+coord) for coord in coords}
 
 
-
-
-p = Point(x=0,y=0,z=0)
-p.set_coords(y=2, f=2)
-print(p.get_coords('yx'))
-
-
-@dataclass
 class Vector:
     """
     A simple vector with defined energy (luminance) in it
@@ -65,39 +57,70 @@ class Vector:
     | /
     + ------------> z
     """
-    __slots__ = '_initial_point', '_lum', '_w_length', '_tetha', '_psi'
-    _initial_point: Point
-    _lum: float             # luminance
-    _w_length: float        # wave length
-    _tetha: float           # in rads.angle between optical axis and the vector in (z,y) plane positive in CCW direction
-    _psi: float             # in rads.angle between optical axis and the vector in (z,x) plane positive in CCW direction
+    __slots__ = '_initial_point', '_lum', '_w_length', '_theta', '_psi'
+
+    def __init__(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float):
+        self._initial_point = initial_point
+        self._lum = lum
+        self._w_length = w_length
+        self._theta = theta
+        self._psi = psi
 
     @property
-    def direction(self) -> Tuple[float, float]:
-        return self._tetha, self.psi
+    def direction(self) -> Dict[str, float]:
+        return {'theta': self._theta, 'psi': self._psi}
+
+    @direction.setter
+    def direction(self, values: Dict[str, float]):
+        tmp_theta, tmp_psi = values.get('theta'), values.get('psi')
+        self._theta = self._theta if tmp_theta is None else tmp_theta
+        self._psi = self._psi if tmp_psi is None else tmp_psi
 
     @property
     def initial_point(self) -> Point:
         return self._initial_point
 
+    @initial_point.setter
+    def initial_point(self,value: Point):
+        self._initial_point = value
+
     @property
     def lum(self) -> Union[int, float]:
         return self._lum
+
+    @lum.setter
+    def lum(self, value: Union[int, float]):
+        self._lum = value
 
     @property
     def w_length(self) -> Union[int, float]:
         return self._w_length
 
+    @w_length.setter
+    def w_length(self, value: Union[int, float]):
+        self._w_length = value
+
     @property
-    def tetha(self) -> Union[int, float]:
-        return self._tetha
+    def theta(self) -> Union[int, float]:
+        return self._theta
+
+    @theta.setter
+    def theta(self, value: Union[int, float]):
+        self._theta = value
 
     @property
     def psi(self) -> Union[int, float]:
         return self._psi
 
+    @psi.setter
+    def psi(self, value: Union[int, float]):
+        self._psi = value
 
 
+p = Point(x=0,y=1,z=2)
+v = Vector(initial_point=p, w_length=555, lum=1, theta=0, psi=0)
+v.direction = {'theta': 0.4, 'psi': 0.1}
+print(v.direction)
 
 
 @dataclass
@@ -107,22 +130,30 @@ class Material:
     refractive_index: float
 
 
-class Boundaries(ABC):
-    """Put here your equations constraining optical components surfaces in F(x, y, z)"""
+# class Boundaries(ABC):
+#     """Put here your equations constraining optical components surfaces in F(x, y, z)"""
+#     @abstractmethod
+#     def boundaries_check(self, x: Union[float, int], y: Union[float, int], z: Union[float, int]) -> bool:
+#         pass
+
+
+class OpticalComponent(ABC):
+    """Material with boundaries which are to constrain material"""
+    def __init__(self, material: Material):
+        self.material = material
+
     @abstractmethod
-    def boundaries_check(self, x: Union[float, int], y: Union[float, int], z: Union[float, int]) -> bool:
+    def __is_in_boundaries(self, point: Point) -> bool:
+        """
+        Place here equations constraining optical components surfaces like x ** 2 + y ** 2 + z ** 2  <= 0
+        Return True if the point is in the boundaries of the optical component.
+        """
         pass
 
-
-class OpticalComponent:
-    """Material with concrete boundaries which are to constrain material"""
-    def __init__(self, material: Material, boundaries: Boundaries):
-        self.material = material
-        self._boundaries = boundaries.boundaries_check
-
-    def __is_in_boundaries(self, point: Point) -> bool:
-        """Return True if the point is in the boundaries of the optical component"""
-        return self._boundaries(point)
+    @abstractmethod
+    def __get_intersection(self, vector: Vector) -> Point:
+        """Returns point where vector line intersects with  boundaries of a cimponent"""
+        pass
 
     def trace_vector(self, vector: Vector) -> Vector:
         """Traces the vector to a boundary of the component"""
@@ -134,8 +165,10 @@ class OpticalComponent:
 
         if not self.__is_in_boundaries(self, vector):
             raise VectorOutOfComponentError()
+        direction_angles: Dict[str, float] = vector.direction
+        outer_point = self.__get_intersection(vector)
+        return outer_point
 
-        direction_angles: Tuple[Union[int, float]] = vector.direction
 
 class OpticalSystem:
     """Singleton of entire system"""
