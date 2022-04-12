@@ -1,16 +1,26 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from functools import wraps
 from math import atan, pi
 from typing import Callable, Dict, Optional, Tuple, Union
 
 from scipy.optimize import fsolve
 
 
+def kwargs_only(cls):
+    """Auxiliary func to make class initions only with keyword args"""
+    @wraps(cls)
+    def call(**kwargs):
+        return cls(**kwargs)
+
+    return call
+
+
 class VectorOutOfComponentError(Exception):
     """Raises then coords of a vector are out of optical component which it was given"""
     pass
 
-
+@kwargs_only
 @dataclass
 class Point:
     """
@@ -71,7 +81,7 @@ class Point:
 p = Point(1, 2, 3)
 print(p)
 
-
+@kwargs_only
 @dataclass
 class Vector:
     """
@@ -159,6 +169,7 @@ class Vector:
 # print((v))
 
 
+@kwargs_only
 @dataclass
 class Material:
     """Medium where energy vector propagates"""
