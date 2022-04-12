@@ -3,12 +3,15 @@ from dataclasses import dataclass
 from math import atan, pi
 from typing import Callable, Dict, Optional, Tuple, Union
 
+from scipy.optimize import fsolve
+
 
 class VectorOutOfComponentError(Exception):
     """Raises then coords of a vector are out of optical component which it was given"""
     pass
 
 
+@dataclass
 class Point:
     """
     Just a point w/ cartesian coordinates in an optical system, where z is an optical axis
@@ -17,23 +20,46 @@ class Point:
     z: float            # z - optical axis
     """
     __slots__ = '_x', '_y', '_z'
+    x: float
+    y: float
+    z: float
 
-    def __init__(self, *, x: Union[float, int], y: Union[float, int], z: Union[float, int]):
-        self._x: float = x
-        self._y: float = y
-        self._z: float = z
+    def __post_init__(self):
+        self._x: float = self.x
+        self._y: float = self.y
+        self._z: float = self.z
 
-    def __str__(self):
-        res = str(self.__class__)
-        for attr in self.__slots__:
-            res = "".join((res, attr, ' = ', str(getattr(self, attr)), ', '))
-        return res
+    @property
+    def x(self):
+        return self._x
+
+    @x.setter
+    def x(self, val):
+        self._x = val
+
+    @property
+    def y(self):
+        return self._y
+
+    @y.setter
+    def y(self, val):
+        self._y = val
+
+    @property
+    def z(self):
+        return self._z
+
+    @z.setter
+    def z(self, val):
+        self._z = val
 
     def set_coords(self, **coords:  Union[float, int]):                                             # FIXME: check inputs
-        tmp_x, tmp_y, tmp_z = coords.get('x'), coords.get('y'), coords.get('z')
-        self._x = self._x if tmp_x is None else tmp_x
-        self._y = self._y if tmp_y is None else tmp_y
-        self._z = self._z if tmp_z is None else tmp_z
+        tmp_coords = coords.get('x'), coords.get('y'), coords.get('z')
+        self_coords = self._x, self._y, self._z
+        self_coords = [self_coord if tmp_coord is None else tmp_coord
+                                                            for tmp_coord, self_coord in zip(tmp_coords,self_coords)]
+
+
 
     def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:                               # FIXME: check inputs
         """
@@ -42,7 +68,11 @@ class Point:
         """
         return {coord: getattr(self, '_'+coord) for coord in coords}
 
+p = Point(1, 2, 3)
+print(p)
 
+
+@dataclass
 class Vector:
     """
     A simple vector with defined energy (luminance) in it
@@ -58,13 +88,19 @@ class Vector:
     + ------------> z
     """
     __slots__ = '_initial_point', '_lum', '_w_length', '_theta', '_psi'
+    initial_point: float
+    lum: float
+    w_length: float
+    theta: float
+    psi: float
 
-    def __init__(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float):
-        self._initial_point = initial_point
-        self._lum = lum
-        self._w_length = w_length
-        self._theta = theta
-        self._psi = psi
+
+    def __post_init__(self):
+        self._initial_point = self.initial_point
+        self._lum = self.lum
+        self._w_length = self.w_length
+        self._theta = self.theta
+        self._psi = self.psi
 
     @property
     def direction(self) -> Dict[str, float]:
@@ -117,25 +153,37 @@ class Vector:
         self._psi = value
 
 
-p = Point(x=0,y=1,z=2)
-v = Vector(initial_point=p, w_length=555, lum=1, theta=0, psi=0)
-v.direction = {'theta': 0.4, 'psi': 0.1}
-print(v.direction)
+# p = Point(x=0,y=1,z=2)
+# v = Vector(initial_point=p, w_length=555, lum=1, theta=0, psi=0)
+# v.direction = {'theta': 0.4, 'psi': 0.1}
+# print((v))
 
 
 @dataclass
 class Material:
     """Medium where energy vector propagates"""
+    __slots__ = '_transparency', '_refractive_index'
     transparency: float
     refractive_index: float
 
+    def __post_init__(self):
+        self._transparency, self._refractive_index = self.transparency, self.refractive_index
 
-# class Boundaries(ABC):
-#     """Put here your equations constraining optical components surfaces in F(x, y, z)"""
-#     @abstractmethod
-#     def boundaries_check(self, x: Union[float, int], y: Union[float, int], z: Union[float, int]) -> bool:
-#         pass
+    @property
+    def transparency(self):
+        return self._transparency
 
+    @transparency.setter
+    def transparency(self, val):
+        self._transparency = val
+
+    @property
+    def refractive_index(self):
+        return self._refractive_index
+
+    @refractive_index.setter
+    def refractive_index(self, val):
+        self._refractive_index = val
 
 class OpticalComponent(ABC):
     """Material with boundaries which are to constrain material"""
