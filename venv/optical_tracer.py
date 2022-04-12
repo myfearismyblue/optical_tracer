@@ -88,7 +88,7 @@ class Vector:
     + ------------> z
     """
     __slots__ = '_initial_point', '_lum', '_w_length', '_theta', '_psi'
-    initial_point: float
+    initial_point: Point
     lum: float
     w_length: float
     theta: float
@@ -96,11 +96,11 @@ class Vector:
 
 
     def __post_init__(self):
-        self._initial_point = self.initial_point
-        self._lum = self.lum
-        self._w_length = self.w_length
-        self._theta = self.theta
-        self._psi = self.psi
+        self._initial_point: Point = self.initial_point
+        self._lum: float = self.lum
+        self._w_length: float = self.w_length
+        self._theta: float = self.theta
+        self._psi: float = self.psi
 
     @property
     def direction(self) -> Dict[str, float]:
@@ -167,7 +167,8 @@ class Material:
     refractive_index: float
 
     def __post_init__(self):
-        self._transparency, self._refractive_index = self.transparency, self.refractive_index
+        self._transparency: float = self.transparency
+        self._refractive_index: float = self.refractive_index
 
     @property
     def transparency(self):
