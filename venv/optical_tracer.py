@@ -78,8 +78,6 @@ class Point:
         """
         return {coord: getattr(self, '_'+coord) for coord in coords}
 
-p = Point(1, 2, 3)
-print(p)
 
 @kwargs_only
 @dataclass
@@ -163,12 +161,6 @@ class Vector:
         self._psi = value
 
 
-# p = Point(x=0,y=1,z=2)
-# v = Vector(initial_point=p, w_length=555, lum=1, theta=0, psi=0)
-# v.direction = {'theta': 0.4, 'psi': 0.1}
-# print((v))
-
-
 @kwargs_only
 @dataclass
 class Material:
@@ -197,10 +189,18 @@ class Material:
     def refractive_index(self, val):
         self._refractive_index = val
 
+
 class OpticalComponent(ABC):
     """Material with boundaries which are to constrain material"""
     def __init__(self, material: Material):
         self.material = material
+
+    def __get_self_position(self):
+        """
+        Ask an optical system about the components self position.
+        :returns Absolute offset of (x=0, y=0, z=0) point of the component relativly (x=0, y=0, z=0) of the system
+        """
+        raise NotImplementedError
 
     @abstractmethod
     def __is_in_boundaries(self, point: Point) -> bool:
@@ -212,7 +212,7 @@ class OpticalComponent(ABC):
 
     @abstractmethod
     def __get_intersection(self, vector: Vector) -> Point:
-        """Returns point where vector line intersects with  boundaries of a cimponent"""
+        """Returns point where vector line intersects boundaries of a component"""
         pass
 
     def trace_vector(self, vector: Vector) -> Vector:
