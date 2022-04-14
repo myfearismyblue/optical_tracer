@@ -165,13 +165,23 @@ class Vector:
 @dataclass
 class Material:
     """Medium where energy vector propagates"""
-    __slots__ = '_transparency', '_refractive_index'
+    __slots__ = '_name', '_transparency', '_refractive_index'
+    name: str
     transparency: float
     refractive_index: float
 
     def __post_init__(self):
+        self._name: str = self.name
         self._transparency: float = self.transparency
         self._refractive_index: float = self.refractive_index
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def transparency(self, val):
+        self._name = val
 
     @property
     def transparency(self):
@@ -232,21 +242,32 @@ class OpticalComponent(ABC):
 
 class OpticalSystem:
     """Singleton of entire system"""
-    def __init__(self):
-        self.optical_components = dict()            # FIXME: maybe id:instance ?
-        self.component_distances = dict()           # FIXME: what about component's geometry? distance to which point?
 
-    def __new__(cls):
+    def __init__(self):
+        self._materials = {0: Material('Air', 1, 1)}                                  # FIXME: typechecking here
+        self._boundaries  = None
+        # removing boundary suppose merging of to materials if they are identical
+        # or removing one of the materials at the right or at the left
+
+
+    def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'instance'):
-            cls.instance = super().__new__()
+            cls.instance = super().__new__(cls)
         else:
             return cls.instance
 
-    def add_component(self):
-        raise NotImplementedError
 
-    def delete_component(self):
-        raise NotImplementedError
+    def add_boundary(self, * ,side: str='rigth', offset: Point, material: Material, boundary: Callable):
+        """
+        Adds a material with it's physical interface (boundary).
+        :param side: Default right. Defines at which side of the boudary material is going to be palced
+        :param offset: Defines an offset of local coordinates of boudary relativly to global (0, 0, 0).
+        :param material: Concrete material to be confined with boudary
+        :param boundary: A function like abs(sqrt(100 - y**2)).
+        :return:
+        """
+
+
 
 
 def main():
