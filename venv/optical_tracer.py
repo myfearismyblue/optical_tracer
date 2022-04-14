@@ -1,8 +1,9 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
+from enum import auto, Enum
 from math import atan, pi
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, ClassVar, Dict, Optional, List, Tuple, Union
 
 from scipy.optimize import fsolve
 
@@ -169,18 +170,23 @@ class Material:
     name: str
     transparency: float
     refractive_index: float
+    standart_materials: ClassVar[List[Material]] = [Material(name='Air',
+                                                             transparency=1,
+                                                             refractive_index=1
+                                                             )]
 
     def __post_init__(self):
         self._name: str = self.name
         self._transparency: float = self.transparency
         self._refractive_index: float = self.refractive_index
 
+
     @property
     def name(self):
         return self._name
 
     @name.setter
-    def transparency(self, val):
+    def name(self, val):
         self._name = val
 
     @property
@@ -199,6 +205,9 @@ class Material:
     def refractive_index(self, val):
         self._refractive_index = val
 
+
+m = Material(name='Glass', transparency=0.9, refractive_index=0.8)
+print(m)
 
 class OpticalComponent(ABC):
     """Material with boundaries which are to constrain material"""
@@ -240,14 +249,35 @@ class OpticalComponent(ABC):
         return outer_point
 
 
+class Side(Enum):
+    RIGHT = auto()
+    LEFT = auto()
+
+@kwargs_only
+@dataclass
+class Layer:
+    """
+    Whole optycal system represented by conception of layers. Each medium with surfaces is not component in the system,
+    but it's a layer of nothing and medium devided by surface. And the opticals system is the superposition of layers.
+    """
+    __slots__ = '_name', '_material', '_boundary', '_side'
+    name: str
+    material: Material
+    boundary: Callable
+    side: Side = field(default=Side.RIGHT)
+
+    def __post_init__(self):
+        self._name = self.name
+        self._material = self.material
+        self._boundary = self.boundary
+        self._side = self.side
+
+
 class OpticalSystem:
     """Singleton of entire system"""
 
     def __init__(self):
-        self._materials = {0: Material('Air', 1, 1)}                                  # FIXME: typechecking here
-        self._boundaries  = None
-        # removing boundary suppose merging of to materials if they are identical
-        # or removing one of the materials at the right or at the left
+        self._layers = Layer(name='Air', )
 
 
     def __new__(cls, *args, **kwargs):
