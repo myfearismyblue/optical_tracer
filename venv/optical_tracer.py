@@ -165,20 +165,24 @@ class Vector:
 @kwargs_only
 @dataclass
 class Material:
-    """Medium where energy vector propagates"""
+    """
+    Medium where energy vector propagates.
+    :param name, transparency, refractive_index
+    """
     __slots__ = '_name', '_transparency', '_refractive_index'
     name: str
     transparency: float
     refractive_index: float
-    standart_materials: ClassVar[List[Material]] = [Material(name='Air',
-                                                             transparency=1,
-                                                             refractive_index=1
-                                                             )]
+
 
     def __post_init__(self):
         self._name: str = self.name
         self._transparency: float = self.transparency
         self._refractive_index: float = self.refractive_index
+
+    @classmethod
+    def add_standart_material(cls, **kwargs):
+        Material.standart_materials = Material(**kwargs)
 
 
     @property
@@ -207,7 +211,8 @@ class Material:
 
 
 m = Material(name='Glass', transparency=0.9, refractive_index=0.8)
-print(m)
+m.add_standart_material(name='Air', transparency=1, refractive_index=1)
+print(Material.standart_materials)
 
 class OpticalComponent(ABC):
     """Material with boundaries which are to constrain material"""
@@ -272,32 +277,61 @@ class Layer:
         self._boundary = self.boundary
         self._side = self.side
 
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, _val: str):
+        self._name = _val
+
+    @property
+    def material(self):
+        return self._material
+
+    @material.setter
+    def material(self, _val: Material):
+        self._material = _val
+
+    @property
+    def boundary(self):
+        return self._boundary
+
+    @boundary.setter
+    def boundary(self, _val: Callable):
+        self._boundary = _val
+
+    @property
+    def side(self):
+        return self._side
+
+    @side.setter
+    def side(self, _val: Side):
+        self._side = _val
+
 
 class OpticalSystem:
     """Singleton of entire system"""
 
-    def __init__(self):
-        self._layers = Layer(name='Air', )
-
-
     def __new__(cls, *args, **kwargs):
         if not hasattr(cls, 'instance'):
             cls.instance = super().__new__(cls)
+            return cls.instance
+
         else:
             return cls.instance
 
-
-    def add_boundary(self, * ,side: str='rigth', offset: Point, material: Material, boundary: Callable):
-        """
-        Adds a material with it's physical interface (boundary).
-        :param side: Default right. Defines at which side of the boudary material is going to be palced
-        :param offset: Defines an offset of local coordinates of boudary relativly to global (0, 0, 0).
-        :param material: Concrete material to be confined with boudary
-        :param boundary: A function like abs(sqrt(100 - y**2)).
-        :return:
-        """
+    def __init__(self):
+        self._layers = Layer(name='Only Air',
+                             material=Material(name='Air', transparency=1, refractive_index=1),
+                             boundary = lambda y: float('inf')
+                             )
 
 
+
+
+os = OpticalSystem()
+print(os._layers)
 
 
 def main():
