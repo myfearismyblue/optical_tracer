@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
-from math import atan, pi
+from math import acos, asin, atan, pi, sqrt, tan
 from typing import Callable, ClassVar, Dict, Optional, List, Tuple, Union
 
 from scipy.optimize import fsolve
@@ -161,6 +161,11 @@ class Vector:
     def psi(self, value: Union[int, float]):
         self._psi = value
 
+    def get_line_equation(self) -> Callable:
+        A = 1 / tan(self.theta)
+        B = self.initial_point.z - self.initial_point.y / tan(self.theta)
+        print(f'{A}*y + {B}')
+        return lambda y : A * y + B
 
 @kwargs_only
 @dataclass
@@ -322,16 +327,42 @@ class OpticalSystem:
             return cls.instance
 
     def __init__(self):
-        self._layers = Layer(name='Only Air',
+        self._layers = [Layer(name='Only Air',
                              material=Material(name='Air', transparency=1, refractive_index=1),
-                             boundary = lambda y: float('inf')
+                             boundary=lambda y: float('inf')        # no intersection point w/ any of lines at plane
                              )
+                        ]
+
+    # def add_layer(self, *, name: str, material: Material, boundary: Callable, side: Side):
+    #     new_layer = Layer(name, material, boundary, side)
+    #     self._layers.append(new_layer)
+
+    def add_layer(self, *, name: str, material: Material, boundary: Callable, side: Side):
+        new_layer = Layer(name=name, material=material, boundary=boundary, side=side)
+        self._layers.append(new_layer)
+
+    def get_intersection(self, *, vector: Vector, layer: Layer):
+        line = vector.get_line_equation()
+        surface = layer.boundary
+        equation = lambda y: surface(y) - line(y)
+        res = fsolve(equation, 0)
+
+
+    def trace_vector_on_layer(self, *, vector: Vector, layer: Layer):                 # FIXME: add return annotation
+        raise NotImplementedError
 
 
 
+opt_s = OpticalSystem()
+opt_s.add_layer(name='Glass parabolic',
+                material=Material(name='Glass', transparency=0.9, refractive_index=0.75),
+                boundary=lambda y : y ** 2 + 100,
+                side=Side.LEFT,
+                )
+print(*opt_s._layers, sep='\n')
 
-os = OpticalSystem()
-print(os._layers)
+v = Vector(initial_point=Point(x=0, y=0, z=0), lum =1, w_length=555, theta=acos(sqrt(3)/2), psi=0)
+print(opt_s.get_intersection(vector=v, layer=opt_s._layers[-1]))
 
 
 def main():
