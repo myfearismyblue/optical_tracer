@@ -161,7 +161,7 @@ class Vector:
     def psi(self, value: Union[int, float]):
         self._psi = value
 
-    def get_line_equation(self) -> Callable:
+    def get_line_equation(self) -> Callable:                                    # FIXME: (!) fix algebra. works wrong
         A = 1 / tan(self.theta)
         B = self.initial_point.z - self.initial_point.y / tan(self.theta)
         print(f'{A}*y + {B}')
@@ -344,7 +344,7 @@ class OpticalSystem:
     def get_intersection(self, *, vector: Vector, layer: Layer):
         line = vector.get_line_equation()
         surface = layer.boundary
-        equation = lambda y: surface(y) - line(y)
+        equation = lambda y: surface(y) - line(y)                                    # only for (y,z)-plane
         res = fsolve(equation, 0)
 
 
