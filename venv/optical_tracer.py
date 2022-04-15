@@ -161,7 +161,7 @@ class Vector:
     def psi(self, value: Union[int, float]):
         self._psi = value
 
-    def get_line_equation(self) -> Callable:                                    # FIXME: (!) fix algebra. works wrong
+    def get_line_equation(self) -> Callable:
         A = 1 / tan(self.theta)
         B = self.initial_point.z - self.initial_point.y / tan(self.theta)
         print(f'{A}*y + {B}')
@@ -341,11 +341,18 @@ class OpticalSystem:
         new_layer = Layer(name=name, material=material, boundary=boundary, side=side)
         self._layers.append(new_layer)
 
-    def get_intersection(self, *, vector: Vector, layer: Layer):
+    def _get_intersection(self, *, vector: Vector, layer: Layer):
         line = vector.get_line_equation()
         surface = layer.boundary
         equation = lambda y: surface(y) - line(y)                                    # only for (y,z)-plane
-        res = fsolve(equation, 0)
+        y_intersection = float(fsolve(equation, 0))
+        z_surf_intersection = surface(y_intersection)
+        z_line_intersection = line(y_intersection)
+        difference = z_surf_intersection - z_line_intersection
+        if difference < vector.w_length * 10 ** (-9) / 4:                            # quarter part of wave length
+            return y_intersection, z_surf_intersection
+        else:
+            print(f'dif {z_surf_intersection-z_line_intersection}')
 
 
     def trace_vector_on_layer(self, *, vector: Vector, layer: Layer):                 # FIXME: add return annotation
@@ -357,12 +364,18 @@ opt_s = OpticalSystem()
 opt_s.add_layer(name='Glass parabolic',
                 material=Material(name='Glass', transparency=0.9, refractive_index=0.75),
                 boundary=lambda y : y ** 2 + 100,
+                side=Side.RIGHT,
+                )
+opt_s.add_layer(name='Glass plane',
+                material=Material(name='Glass', transparency=0.9, refractive_index=0.75),
+                boundary=lambda y : 120,
                 side=Side.LEFT,
                 )
+
 print(*opt_s._layers, sep='\n')
 
-v = Vector(initial_point=Point(x=0, y=0, z=0), lum =1, w_length=555, theta=acos(sqrt(3)/2), psi=0)
-print(opt_s.get_intersection(vector=v, layer=opt_s._layers[-1]))
+v = Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
+print(opt_s._get_intersection(vector=v, layer=opt_s._layers[-2]))
 
 
 def main():
