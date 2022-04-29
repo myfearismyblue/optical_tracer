@@ -1,16 +1,20 @@
+OPT_SYS_DIMENTIONS = (-100, 100)
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
-from math import acos, asin, atan, pi, sqrt, tan
+from math import acos, asin, atan, pi, sin, sqrt, tan
 from typing import Callable, ClassVar, Dict, Optional, List, Tuple, Union
 from warnings import warn
 
 from scipy.optimize import fsolve
 import numpy as np
 
+
 def kwargs_only(cls):
     """Auxiliary func to make class initions only with keyword args"""
+
     @wraps(cls)
     def call(**kwargs):
         return cls(**kwargs)
@@ -27,6 +31,7 @@ class NoIntersectionWarning(Warning):
     """Raises then vector doesn't inresect any surface"""
     pass
 
+
 class ObjectKeyWordsMissmatch(Warning):
     """Raises when __init__ gets unexpexted **kwargs"""
     pass
@@ -34,6 +39,7 @@ class ObjectKeyWordsMissmatch(Warning):
 
 class ICheckable(ABC):
     """Interface for object with necessity of imput vars' check"""
+
     def __init__(self, *args, **kwargs):
         self._check_inputs(*args, **kwargs)
         self._throw_inputs(*args, **kwargs)
@@ -46,29 +52,33 @@ class ICheckable(ABC):
     def _throw_inputs(self, *args, **kwargs):
         pass
 
+
 class BaseCheckStrategy(ABC):
     """Base strat class for object input check"""
+
     @abstractmethod
     def check(self, *args, **kwargs):
         ...
 
+
 class PointCheckStrategy(BaseCheckStrategy):
-    """The way in which any Point object's inputs should be checked"""          #FIXME: Add concrete conditions
+    """The way in which any Point object's inputs should be checked"""  # FIXME: Add concrete conditions
+
     def check(self, *args, **kwargs):
         expected_coords_names = [name[1:] for name in Point.__slots__ if name.startswith('_')]
         for coord in kwargs.items():
             kwargs[coord[0]] = float(coord[1])
 
-        if not all (coord in kwargs for coord in expected_coords_names):
+        if not all(coord in kwargs for coord in expected_coords_names):
             print(f'Not enough args. Should exists {expected_coords_names}')
-
 
         if not all(coord in expected_coords_names for coord in kwargs):
             warn(f'Wrong keyword in : {kwargs}', ObjectKeyWordsMissmatch)
 
 
 class VectorCheckStrategy(BaseCheckStrategy):
-    """The way in which any Vector object's inputs should be checked"""          #FIXME: Add concrete conditions
+    """The way in which any Vector object's inputs should be checked"""  # FIXME: Add concrete conditions
+
     def check(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -107,25 +117,31 @@ class Point(ICheckable):
     def z(self, val):
         self._z = val
 
-    def set_coords(self, **coords:  Union[float, int]):                                             # FIXME: check inputs
+    def set_coords(self, **coords: Union[float, int]):  # FIXME: check inputs
         tmp_coords = coords.get('x'), coords.get('y'), coords.get('z')
         self_coords = self._x, self._y, self._z
         self_coords = [self_coord if tmp_coord is None else tmp_coord
-                                                            for tmp_coord, self_coord in zip(tmp_coords,self_coords)]
+                       for tmp_coord, self_coord in zip(tmp_coords, self_coords)]
 
-
-
-    def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:                               # FIXME: check inputs
+    def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:  # FIXME: check inputs
         """
         :argument Use string as input like point.get_coords('yx').
         :returns dict like {'y': 0, 'x': 0.5}
         """
-        return {coord: getattr(self, '_'+coord) for coord in coords}
+        return {coord: getattr(self, '_' + coord) for coord in coords}
+
+    def get_distance(self, point) -> float:
+        """
+        Returns distance to the point
+        :param p:
+        :return:
+        """
+        return sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2 + (self.z - point.z) ** 2)
 
     def _check_inputs(self, *args, **kwargs):
         PointCheckStrategy().check(*args, **kwargs)
 
-    def _throw_inputs(self, *args, **kwargs):       #FIXME: fix this shit
+    def _throw_inputs(self, *args, **kwargs):  # FIXME: fix this shit
         self._x: float = kwargs['x']
         self._y: float = kwargs['y']
         self._z: float = kwargs['z']
@@ -154,7 +170,6 @@ class Vector:
     theta: float
     psi: float
 
-
     def __post_init__(self):
         self._initial_point: Point = self.initial_point
         self._lum: float = self.lum
@@ -177,7 +192,7 @@ class Vector:
         return self._initial_point
 
     @initial_point.setter
-    def initial_point(self,value: Point):
+    def initial_point(self, value: Point):
         self._initial_point = value
 
     @property
@@ -217,7 +232,8 @@ class Vector:
         A = 1 / tan(self.theta)
         B = self.initial_point.z - self.initial_point.y / tan(self.theta)
         print(f'{A}*y + {B}') if repr else None
-        return lambda y : A * y + B
+        return lambda y: A * y + B
+
 
 @kwargs_only
 @dataclass
@@ -231,7 +247,6 @@ class Material:
     transparency: float
     refractive_index: float
 
-
     def __post_init__(self):
         self._name: str = self.name
         self._transparency: float = self.transparency
@@ -240,7 +255,6 @@ class Material:
     @classmethod
     def add_standart_material(cls, **kwargs):
         Material.standart_materials = Material(**kwargs)
-
 
     @property
     def name(self):
@@ -326,22 +340,17 @@ class Layer:
 
 class OpticalSystem:
     """
-    Singleton of entire system
+    DO stuff
     :param dimentions : List[float] aproximate the most dimentions in (x, y) plane in mm. Defaule [-100, 100]
     """
-    instance = None
-    def __new__(cls, *args, **kwargs):
-        if cls.instance is None:
-            cls.instance = super().__new__(cls)
-        return cls.instance
 
-    def __init__(self, dimentions: List[float] = [-100, 100]):
+    def __init__(self, dimentions: Tuple[float] = OPT_SYS_DIMENTIONS):
         self._layers = [Layer(name='Only Air',
-                             material=Material(name='Air', transparency=1, refractive_index=1),
-                             boundary=lambda y: float('inf')        # no intersection point w/ any of lines at plane
-                             )
+                              material=Material(name='Air', transparency=1, refractive_index=1),
+                              boundary=lambda y: float('inf')  # no intersection point w/ any of lines at plane
+                              )
                         ]
-        self._dimentions = dimentions                                                # FIXME: check inputs here
+        self._dimentions = dimentions  # FIXME: check inputs here
 
     def add_layer(self, *, name: str, material: Material, boundary: Callable, side: Side):
         new_layer = Layer(name=name, material=material, boundary=boundary, side=side)
@@ -368,14 +377,14 @@ class OpticalSystem:
             # is this the same point?
             difference = z_surf_intersection - z_line_intersection
 
-            if difference > vector.w_length * 10 ** (-6) / 4:                            # quarter part of wave length
+            if difference > vector.w_length * 10 ** (-6) / 4:  # quarter part of wave length
                 warn(f'Line and surface difference intersections: {difference}', NoIntersectionWarning)
                 # FIXME: check measures meters or milimeters?
                 continue
 
             vector_directed_left = pi / 2 <= vector.theta <= 3 * pi / 2
             intersection_is_righter = z_surf_intersection > vector.initial_point.z
-            if intersection_is_righter == vector_directed_left :
+            if intersection_is_righter == vector_directed_left:
                 # checks if vector is directed to the intersection
                 warn(f'Surface is out of vectors direction: '
                      f'theta={vector.theta:.3f}, '
@@ -384,28 +393,68 @@ class OpticalSystem:
             approved_ys.append(y)
         return approved_ys
 
-    def _get_intersection(self, *, vector: Vector, layer: Layer) -> List[Tuple[float]]:
+    def _find_closest_intersection(self, *, approved_intersections: List[Point], vector: Vector) -> Point:
+        min_distance = float('inf')
+        cand = None
+        for point in approved_intersections:
+            current_distance = point.get_distance(vector.initial_point)
+            if current_distance < min_distance:
+                min_distance = current_distance
+                cand = point
+        return cand
+
+    def _get_intersection(self, *, vector: Vector, layer: Layer) -> Tuple[float]:
         """
         Returns valid intersections of the vector with boundary layer.boundary
-        :return: List of tuples
+        :return: (y, z) coord of intersections with boundary - the closest intersection to the point .
         """
         line = vector.get_line_equation()
         surface = layer.boundary
-        equation = lambda y: surface(y) - line(y)                                    # only for (y,z)-plane
+        equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
         probable_y_intersections = list(fsolve(equation, np.array(self._dimentions)))
         approved_ys = self._check_probable_intersections(probable_ys=probable_y_intersections,
                                                          layer=layer,
                                                          vector=vector)
         # [(y, z), .....]
         approved_zs = [surface(y) for y in approved_ys]
-        return list(zip(approved_ys, approved_zs))
+        assert len(approved_zs) == len(approved_ys)
+        approved_intersections = [Point(x=0, y=item[0], z=item[1]) for item in zip(approved_ys, approved_zs)]
+        closest_intersection = self._find_closest_intersection(approved_intersections=approved_intersections, vector=vector)
+        return closest_intersection
 
+    def _propagate_vector(self, *, vector: Vector, layer: Layer, ):
+        pass
+    @staticmethod
+    def _get_refract_angle(*, vector_angle: float, normal_angle: float,
+                           refractive_index1: float, refractive_index2: float) -> float:
+        """
+        Implements Snell's law.
+        :param vector_angle: vector's global angle to optical axis [0, 2*pi)
+        :param normal_angle: angle of  normal at the point of intersection to optical axis [0, pi)
+        :param refractive_index1: index of medium vector is leaving
+        :param refractive_index2: index of medium vector is arriving to
+        :return: vector's global angle after transition to the new medium (to the z-axis)
+        """
+        assert 0 <= vector_angle < 2 * pi  # only clear data in the class
+        assert 0 <= normal_angle < pi
+        assert refractive_index1 and refractive_index2
 
+        alpha = vector_angle - normal_angle  # local angle of incidence
+        assert alpha != pi / 2 and alpha != 3 * pi / 2  # assuming vector isn't tangental to boundary
+        beta = asin(refractive_index1 / refractive_index2 * sin(alpha)) % (2 * pi)
+        # if vector and normal are contrdirected asin(sin(x)) doesn't give x, so make some addition
+        beta = pi - beta if pi / 2 < alpha < 3 * pi / 2 else beta
 
+        ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
+        return ret
 
-    def trace_vector_on_layer(self, *, vector: Vector, layer: Layer):                 # FIXME: add return annotation
+    def trace_vector_on_layer(self, *, vector: Vector, layer: Layer):  # FIXME: add return annotation
+        # get intersection
+        # if exists do propogate
+        # find tangent and normal at the point of intersection
+        # do some magic to find next media
+        # refract vector
         raise NotImplementedError
-
 
 
 def main():
