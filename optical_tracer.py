@@ -357,10 +357,14 @@ class OpticalComponent:
     Intersection of layers which are to bound optical material
     """
 
-    def __init__(self, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS):
+    def __init__(self, *, name: str, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS):
+        self._name: str = name
         self._layers: Optional[List[Layer]] = []
         self._material: Optional[Material] = None
         self._dimensions = dimensions  # FIXME: check inputs here
+
+    def __repr__(self):
+        return f'{self.name}, {super().__repr__()}'
 
     def add_layer(self, *, new_layer: Layer):
         self._layers.append(new_layer)
@@ -374,6 +378,14 @@ class OpticalComponent:
     @material.setter
     def material(self, _val: Material):
         self._material = _val
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self,_val: str):
+        self._name = _val
 
     def _check_probable_intersections(self, *, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
         """
@@ -521,25 +533,45 @@ class OpticalComponent:
         raise NotImplementedError
 
 
+class OpticalSystem:
+    """
+    Entire system. Responses for propagating vector between components
+    """
+    def __init__(self):
+        self._components: List[OpticalComponent] = []
+
+    def add_component(self,*, component):
+        self._components.append(component)
+
+
 def main():
-    opt_c = OpticalComponent()
-    opt_c.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
+    first_lense = OpticalComponent(name='first lense')
+    first_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
     parabolic_l = Layer(name='parabolic',
-                        boundary=lambda y: y ** 2 ,
+                        boundary=lambda y: y ** 2 / 10 ,
                         side=Side.RIGHT,
                         )
-    opt_c.add_layer(new_layer=parabolic_l)
+    first_lense.add_layer(new_layer=parabolic_l)
     plane_l = Layer(name='plane',
-                    boundary=lambda y: 10.5,
+                    boundary=lambda y: 10,
                     side=Side.LEFT,
                     )
-    opt_c.add_layer(new_layer=plane_l)
-    pass
+    first_lense.add_layer(new_layer=plane_l)
 
-    v = Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
-    intersec = opt_c._get_component_intersection(vector=v)
-    print(intersec[1])
-    print(opt_c._get_noraml_angle(intersection=intersec))
+    opt_sys = OpticalSystem()
+    opt_sys.add_component(component=first_lense)
+
+    second_lense = OpticalComponent(name='second lense')
+    second_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
+
+    plane_sec = Layer(name='plane_sec',boundary=lambda y: 20,side=Side.RIGHT)
+    second_lense.add_layer(new_layer=plane_sec)
+
+    parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30-y ** 2 / 10 , side=Side.LEFT)
+    second_lense.add_layer(new_layer=parabolic_sec)
+    opt_sys.add_component(component=second_lense)
+
+
 
 
 if __name__ == '__main__':
