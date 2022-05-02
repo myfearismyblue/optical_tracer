@@ -4,7 +4,7 @@ from math import pi
 
 deg = 2 * pi / 360
 
-opt_s = OpticalComponent()
+opt_c = OpticalComponent()
 
 
 @pytest.mark.parametrize('vector_angle, normal_angle, refractive_index1, refractive_index2, expected',
@@ -16,5 +16,8 @@ opt_s = OpticalComponent()
                          ]
                         )
 def test__get_refract_angle(vector_angle, normal_angle, refractive_index1, refractive_index2, expected):
-    assert opt_s._get_refract_angle(vector_angle=vector_angle, normal_angle=normal_angle,
+    assert opt_c._get_refract_angle(vector_angle=vector_angle, normal_angle=normal_angle,
                                     refractive_index1=refractive_index1, refractive_index2=refractive_index2) == expected
+
+
+

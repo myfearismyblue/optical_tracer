@@ -1,17 +1,17 @@
-OPT_SYS_DIMENSIONS = (-100, 100)
-
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
-from math import acos, asin, atan, pi, sin, sqrt, tan
-from typing import Callable, ClassVar, Dict, Optional, List, Tuple, Union
+from math import asin, pi, sin, sqrt, tan
+from typing import Callable, Dict, Optional, List, Tuple, Union
 from warnings import warn
 
 from scipy.optimize import fsolve
 import numpy as np
 
-d
+OPT_SYS_DIMENSIONS = (-100, 100)
+
+
 def kwargs_only(cls):
     """Auxiliary func to make class initions only with keyword args"""
 
@@ -138,10 +138,12 @@ class Point(ICheckable):
     def get_distance(self, point) -> float:
         """
         Returns distance to the point
-        :param p:
-        :return:
+        :param point: particular point with .x, .y, .z attrs
+        :return: distance to the particular point
         """
-        return sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2 + (self.z - point.z) ** 2)
+        if all((hasattr(point, 'x'), hasattr(point, 'y'), hasattr(point, 'z'))):
+            return sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2 + (self.z - point.z) ** 2)
+        raise UnspecifiedFieldException
 
     def _check_inputs(self, *args, **kwargs):
         PointCheckStrategy().check(*args, **kwargs)
@@ -160,7 +162,7 @@ class Vector:
     initial_point: Point
     lum: float              # luminance
     w_length: float         # wave length, default 555nm green light
-    tetha: float            # angle between optical axis and the vector in (z,y) plane positive in CCW direction
+    theta: float            # angle between optical axis and the vector in (z,y) plane positive in CCW direction
     psi: float              # angle between optical axis and the vector in (z,x) plane positive in CCW direction
     y
     ^    ^ x
@@ -349,8 +351,8 @@ class OpticalComponent:
     """
 
     def __init__(self, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS):
-        self._layers = []
-        self._material: Material = None
+        self._layers: Optional[List[Layer]] = []
+        self._material: Optional[Material] = None
         self._dimensions = dimensions  # FIXME: check inputs here
 
     def add_layer(self, *, new_layer: Layer):
@@ -366,7 +368,7 @@ class OpticalComponent:
     def material(self, _val: Material):
         self._material = _val
 
-    def _check_probable_intersections(self, *, probable_ys: List[float], layer: Layer, vector: Vector):
+    def _check_probable_intersections(self, *, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
         """
         Checks if each of given ys is:
             1. at the semiplane to which vector is directed;
@@ -404,7 +406,7 @@ class OpticalComponent:
         return approved_ys
 
     def _check_if_point_is_inside(self, *, point: Point) -> bool:
-        return all(layer.contains_point(point) for layer in self._layers)
+        return all([layer.contains_point(point) for layer in self._layers])
 
     def _find_closest_intersection(self, *, approved_intersections: List[Point], vector: Vector) -> Point:
         min_distance = float('inf')
@@ -416,15 +418,22 @@ class OpticalComponent:
                 cand = point
         return cand
 
-    def _get_component_intersection(self, *, vector: Vector):
+    def _get_component_intersection(self, *, vector: Vector) -> Point:
+        """
+        Returns the point of vector intersection with the component as a minimum of layers' intersections.
+        """
         if self._check_if_point_is_inside(vector.initial_point):
             found_intersections: Optional[List[Point]] = []
             for layer in self._layers:
-                found_intersections.append(self._get_layer_intersection(vector=vector, layer=layer)) \
+                found_intersections.append(self._get_layer_intersection(vector=vector, layer=layer))
+            ret = self._find_closest_intersection(approved_intersections=found_intersections, vector=vector)
+            return ret
+
+        raise VectorOutOfComponentWarning
 
     def _get_layer_intersection(self, *, vector: Vector, layer: Layer) -> Point:
         """
-        Returns valid intersections of the vector with boundary layer.boundary
+        Returns valid closest intersection of the vector with boundary layer.boundary
         :return: (y, z) coord of intersections with boundary - the closest intersection to the point .
         """
         line = vector.get_line_equation()
@@ -481,14 +490,16 @@ class OpticalComponent:
 def main():
     opt_c = OpticalComponent()
     opt_c.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
-    opt_c.add_layer(name='parabolic',
+    parabolic_l = Layer(name='parabolic',
                     boundary=lambda y: y ** 2 + 100,
                     side=Side.RIGHT,
                     )
-    opt_c.add_layer(name='plane',
+    opt_c.add_layer(new_layer=parabolic_l)
+    plane_l = Layer(name='plane',
                     boundary=lambda y: 120,
                     side=Side.LEFT,
                     )
+    opt_c.add_layer(new_layer=plane_l)
     pass
 
     # v = Vector(initial_point=Point(q=0, x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
