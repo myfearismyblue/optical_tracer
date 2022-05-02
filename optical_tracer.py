@@ -11,6 +11,7 @@ from scipy.optimize import fsolve
 import numpy as np
 
 OPT_SYS_DIMENSIONS = (-100, 100)
+QUARTER_PART_IN_MM = 10 ** (-6) / 4     # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 
 
 def kwargs_only(cls):
@@ -343,8 +344,8 @@ class Layer:
         Checks if input point and material (self.side) are at a same side of boundary
         """
         point_right = point.z > self.boundary(point.y)
-        point_left = point.z < self.boundary(point.y)
-        if (point_right and self.side==Side.RIGHT) or (point_left and self.side==Side.LEFT):
+        point_left = not point_right
+        if (point_right and self.side == Side.RIGHT) or (point_left and self.side == Side.LEFT):
             return True
         return False
 
@@ -385,28 +386,39 @@ class OpticalComponent:
         surface = layer.boundary
         line = vector.get_line_equation()
         approved_ys = []
-        for y in probable_ys:
+        for current_y in probable_ys:
             # get z-coord of intersection on surface
-            z_surf_intersection = surface(y)
+            z_surf_intersection = surface(current_y)
             # get z-coord of intersection on line
-            z_line_intersection = line(y)
+            z_line_intersection = line(current_y)
             # is this the same point?
             difference = z_surf_intersection - z_line_intersection
 
-            if difference > vector.w_length * 10 ** (-6) / 4:  # quarter part of wave length
+            if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
                 warn(f'Line and surface difference intersections: {difference}', NoIntersectionWarning)
                 # FIXME: check measures meters or milimeters?
                 continue
 
+            # check if vector is directed to the intersection
             vector_directed_left = pi / 2 <= vector.theta <= 3 * pi / 2
             intersection_is_righter = z_surf_intersection > vector.initial_point.z
             if intersection_is_righter == vector_directed_left:
-                # checks if vector is directed to the intersection
                 warn(f'Surface "{layer.name}" is out of vectors direction: '
                      f'theta={vector.theta:.3f}, '
-                     f'intersection at (y,z)=({y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
+                     f'intersection at (y,z)=({current_y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
                 continue
-            approved_ys.append(y)
+
+            # check if initial point of the vector is located on the boundary
+            intersection_point = Point(x=0, y=current_y, z=z_surf_intersection)
+            vector_difference = vector.initial_point.get_distance(intersection_point)
+            if vector_difference <= vector.w_length * QUARTER_PART_IN_MM:
+                material_at_the_left = layer.side==Side.LEFT
+                warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
+                     f'Vector directed to {vector.theta}, material is at the {layer.side}')
+                if vector_directed_left == material_at_the_left:
+                    continue
+
+            approved_ys.append(current_y)
         return approved_ys
 
     def _check_if_point_is_inside(self, *, point: Point) -> bool:
@@ -427,18 +439,19 @@ class OpticalComponent:
         Returns the tuple (layer, point) of vector intersection with the component as a minimum of distances
         to layers' intersections.
         """
-        if self._check_if_point_is_inside(point=vector.initial_point):
-            found_intersections = {}
-            for layer in self._layers:
-                found_intersections[id(layer)] = self._get_layer_intersection(vector=vector, layer=layer)
-            closest_point = self._find_closest_intersection(approved_intersections=found_intersections.values(), vector=vector)
-            for k, v in found_intersections.items():
-                closest_layer_id = k if v == closest_point else None
-            assert closest_layer_id is not None, 'Closest point is found, but layer is not'
-            closest_layer = ct.cast(closest_layer_id, ct.py_object).value
-            return closest_layer, closest_point
+        found_intersections = {}
+        for layer in self._layers:
+            found_intersections[id(layer)] = self._get_layer_intersection(vector=vector, layer=layer)
+        if all(point is None for point in found_intersections.values()):
+            raise VectorOutOfComponentWarning
+        closest_point = self._find_closest_intersection(approved_intersections=found_intersections.values(),
+                                                        vector=vector)
+        for k, v in found_intersections.items():
+            closest_layer_id = k if v == closest_point else None
+        assert closest_layer_id is not None, 'Closest point is found, but layer is not'
+        closest_layer = ct.cast(closest_layer_id, ct.py_object).value
+        return closest_layer, closest_point
 
-        raise VectorOutOfComponentWarning
 
     def _get_layer_intersection(self, *, vector: Vector, layer: Layer) -> Point:
         """
@@ -500,12 +513,12 @@ def main():
     opt_c = OpticalComponent()
     opt_c.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
     parabolic_l = Layer(name='parabolic',
-                    boundary=lambda y: y ** 2 -10,
-                    side=Side.RIGHT,
-                    )
+                        boundary=lambda y: y ** 2 ,
+                        side=Side.RIGHT,
+                        )
     opt_c.add_layer(new_layer=parabolic_l)
     plane_l = Layer(name='plane',
-                    boundary=lambda y: 0.5,
+                    boundary=lambda y: 10.5,
                     side=Side.LEFT,
                     )
     opt_c.add_layer(new_layer=plane_l)
