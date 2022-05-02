@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+import ctypes as ct
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
@@ -152,6 +153,9 @@ class Point(ICheckable):
         self._x: float = kwargs['x']
         self._y: float = kwargs['y']
         self._z: float = kwargs['z']
+
+    def __repr__(self):
+        return f'{self.__class__}, x = {self.x}, y = {self.y}, z = {self.z}'
 
 
 @kwargs_only
@@ -340,7 +344,7 @@ class Layer:
         """
         point_right = point.z > self.boundary(point.y)
         point_left = point.z < self.boundary(point.y)
-        if (point_right and self.side.RIGHT) or (point_left and self.side.LEFT):
+        if (point_right and self.side==Side.RIGHT) or (point_left and self.side==Side.LEFT):
             return True
         return False
 
@@ -398,7 +402,7 @@ class OpticalComponent:
             intersection_is_righter = z_surf_intersection > vector.initial_point.z
             if intersection_is_righter == vector_directed_left:
                 # checks if vector is directed to the intersection
-                warn(f'Surface is out of vectors direction: '
+                warn(f'Surface "{layer.name}" is out of vectors direction: '
                      f'theta={vector.theta:.3f}, '
                      f'intersection at (y,z)=({y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
                 continue
@@ -406,7 +410,7 @@ class OpticalComponent:
         return approved_ys
 
     def _check_if_point_is_inside(self, *, point: Point) -> bool:
-        return all([layer.contains_point(point) for layer in self._layers])
+        return all((layer.contains_point(point=point) for layer in self._layers))
 
     def _find_closest_intersection(self, *, approved_intersections: List[Point], vector: Vector) -> Point:
         min_distance = float('inf')
@@ -418,16 +422,21 @@ class OpticalComponent:
                 cand = point
         return cand
 
-    def _get_component_intersection(self, *, vector: Vector) -> Point:
+    def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
-        Returns the point of vector intersection with the component as a minimum of layers' intersections.
+        Returns the tuple (layer, point) of vector intersection with the component as a minimum of distances
+        to layers' intersections.
         """
-        if self._check_if_point_is_inside(vector.initial_point):
-            found_intersections: Optional[List[Point]] = []
+        if self._check_if_point_is_inside(point=vector.initial_point):
+            found_intersections = {}
             for layer in self._layers:
-                found_intersections.append(self._get_layer_intersection(vector=vector, layer=layer))
-            ret = self._find_closest_intersection(approved_intersections=found_intersections, vector=vector)
-            return ret
+                found_intersections[id(layer)] = self._get_layer_intersection(vector=vector, layer=layer)
+            closest_point = self._find_closest_intersection(approved_intersections=found_intersections.values(), vector=vector)
+            for k, v in found_intersections.items():
+                closest_layer_id = k if v == closest_point else None
+            assert closest_layer_id is not None, 'Closest point is found, but layer is not'
+            closest_layer = ct.cast(closest_layer_id, ct.py_object).value
+            return closest_layer, closest_point
 
         raise VectorOutOfComponentWarning
 
@@ -491,19 +500,19 @@ def main():
     opt_c = OpticalComponent()
     opt_c.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
     parabolic_l = Layer(name='parabolic',
-                    boundary=lambda y: y ** 2 + 100,
+                    boundary=lambda y: y ** 2 -10,
                     side=Side.RIGHT,
                     )
     opt_c.add_layer(new_layer=parabolic_l)
     plane_l = Layer(name='plane',
-                    boundary=lambda y: 120,
+                    boundary=lambda y: 0.5,
                     side=Side.LEFT,
                     )
     opt_c.add_layer(new_layer=plane_l)
     pass
 
-    # v = Vector(initial_point=Point(q=0, x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
-    # print(*opt_c._get_layer_intersection(vector=v, layer=opt_c._layers[-2]), sep='\n')
+    v = Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
+    print(opt_c._get_component_intersection(vector=v), sep='\n')
 
 
 if __name__ == '__main__':
