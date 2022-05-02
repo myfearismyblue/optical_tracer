@@ -3,15 +3,17 @@ import ctypes as ct
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
-from math import asin, pi, sin, sqrt, tan
+from math import asin, atan, pi, sin, sqrt, tan
 from typing import Callable, Dict, Optional, List, Tuple, Union
 from warnings import warn
 
+from scipy.misc import derivative
 from scipy.optimize import fsolve
 import numpy as np
 
 OPT_SYS_DIMENSIONS = (-100, 100)
 QUARTER_PART_IN_MM = 10 ** (-6) / 4     # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
+TOLL = 10 ** -3                         # to use in scipy functions
 
 
 def kwargs_only(cls):
@@ -316,7 +318,7 @@ class Layer:
         self._side = self.side
 
     @property
-    def name(self):
+    def name(self) -> str:
         return self._name
 
     @name.setter
@@ -324,7 +326,7 @@ class Layer:
         self._name = _val
 
     @property
-    def boundary(self):
+    def boundary(self) -> Callable:
         return self._boundary
 
     @boundary.setter
@@ -332,7 +334,7 @@ class Layer:
         self._boundary = _val
 
     @property
-    def side(self):
+    def side(self) -> Side:
         return self._side
 
     @side.setter
@@ -452,7 +454,6 @@ class OpticalComponent:
         closest_layer = ct.cast(closest_layer_id, ct.py_object).value
         return closest_layer, closest_point
 
-
     def _get_layer_intersection(self, *, vector: Vector, layer: Layer) -> Point:
         """
         Returns valid closest intersection of the vector with boundary layer.boundary
@@ -473,7 +474,18 @@ class OpticalComponent:
                                                                vector=vector)
         return closest_intersection
 
-    def _propagate_vector(self, *, vector: Vector, layer: Layer, ):
+    def _get_noraml_angle(self, *, intersection: Tuple[Layer, Point]) -> float:
+        """
+        Returns angle in radians of normal line to the surface at the point of intersection.
+        Uses scipy.misc.derivative
+        """
+        y: float = intersection[1].y
+        surf_equation: Callable = intersection[0].boundary
+        normal_angle: float = ((3/2*pi - atan(-1/derivative(surf_equation, y, dx=TOLL))) %pi )
+        assert 0 <= normal_angle < pi
+        return normal_angle
+
+    def _propagate_vector(self, *, vector: Vector, layer:  Layer, ):
         pass
 
     @staticmethod
@@ -525,7 +537,9 @@ def main():
     pass
 
     v = Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.03, psi=0)
-    print(opt_c._get_component_intersection(vector=v), sep='\n')
+    intersec = opt_c._get_component_intersection(vector=v)
+    print(intersec[1])
+    print(opt_c._get_noraml_angle(intersection=intersec))
 
 
 if __name__ == '__main__':
