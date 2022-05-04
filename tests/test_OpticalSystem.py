@@ -51,7 +51,7 @@ intersec = [(parabolic_l, Point(x=0, y=0.0001, z=0)),
                           (intersec[5], pytest.approx(0, 0.001)),                   # check with constant (plane) bound
                          ])
 def test__get_noraml_angle(intersec, expected):
-    assert opt_c._get_noraml_angle(intersection=intersec) == expected
+    assert opt_c._get_normal_angle(intersection=intersec) == expected
 
 
 

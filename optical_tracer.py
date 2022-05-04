@@ -387,7 +387,8 @@ class OpticalComponent:
     def name(self,_val: str):
         self._name = _val
 
-    def _check_probable_intersections(self, *, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
+    @staticmethod
+    def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
         """
         Checks if each of given ys is:
             1. at the semiplane to which vector is directed;
@@ -438,7 +439,11 @@ class OpticalComponent:
     def _check_if_point_is_inside(self, *, point: Point) -> bool:
         return all((layer.contains_point(point=point) for layer in self._layers))
 
-    def _find_closest_intersection(self, *, approved_intersections: List[Point], vector: Vector) -> Point:
+    @staticmethod
+    def _find_closest_intersection(*, approved_intersections: List[Point], vector: Vector) -> Point:
+        """
+        In the list of points finds the closest point to vector
+        """
         min_distance = float('inf')
         cand = None
         for point in approved_intersections:
@@ -486,14 +491,15 @@ class OpticalComponent:
                                                                vector=vector)
         return closest_intersection
 
-    def _get_noraml_angle(self, *, intersection: Tuple[Layer, Point]) -> float:
+    @staticmethod
+    def _get_normal_angle(*, intersection: Tuple[Layer, Point]) -> float:
         """
         Returns angle in radians of normal line to the surface at the point of intersection.
         Uses scipy.misc.derivative
         """
         y: float = intersection[1].y
         surf_equation: Callable = intersection[0].boundary
-        normal_angle: float = ((3/2*pi - atan(-1/derivative(surf_equation, y, dx=TOLL))) %pi )
+        normal_angle: float = ((3/2*pi - atan(-1/derivative(surf_equation, y, dx=TOLL))) % pi)
         assert 0 <= normal_angle < pi
         return normal_angle
 
@@ -540,7 +546,7 @@ class OpticalSystem:
     def __init__(self):
         self._components: List[OpticalComponent] = []
 
-    def add_component(self,*, component):
+    def add_component(self, *, component):
         self._components.append(component)
 
 
