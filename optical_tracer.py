@@ -351,6 +351,89 @@ class Layer:
             return True
         return False
 
+    def get_layer_intersection(self, *, vector: Vector) -> Point:
+        """
+        Returns valid closest intersection of the vector with boundary layer.boundary
+        :return: (y, z) coord of intersections with boundary - the closest intersection to the point .
+        """
+        line = vector.get_line_equation()
+        surface = self.boundary
+        equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
+        probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+                                                        # FIXME: throw input as attr. Think about this
+        approved_ys = _check_probable_intersections(probable_ys=probable_y_intersections,
+                                                    layer=self,
+                                                    vector=vector)
+        # [(y, z), .....]
+        approved_zs = [surface(y) for y in approved_ys]
+        assert len(approved_zs) == len(approved_ys)
+        approved_intersections = [Point(x=0, y=item[0], z=item[1]) for item in zip(approved_ys, approved_zs)]
+        closest_intersection = _find_closest_intersection(approved_intersections=approved_intersections,
+                                                          vector=vector)
+        return closest_intersection
+
+
+def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
+    """
+    Checks if each of given ys is:
+        1. at the semiplane to which vector is directed;
+        2. point on surface and point on line with the y are convergates.
+    :param probable_ys: List[float], list of probable y-coords
+    :param layer: a layer with concrete boundary
+    :param vector: concrete vector which intersections to be checked
+    :return: list of (y, z) pairs
+    """
+    surface = layer.boundary
+    line = vector.get_line_equation()
+    approved_ys = []
+    for current_y in probable_ys:
+        # get z-coord of intersection on surface
+        z_surf_intersection = surface(current_y)
+        # get z-coord of intersection on line
+        z_line_intersection = line(current_y)
+        # is this the same point?
+        difference = z_surf_intersection - z_line_intersection
+
+        if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
+            warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
+            # FIXME: check measures meters or milimeters?
+            continue
+
+        # check if vector is directed to the intersection
+        vector_directed_left = pi / 2 <= vector.theta <= 3 * pi / 2
+        intersection_is_righter = z_surf_intersection > vector.initial_point.z
+        if intersection_is_righter == vector_directed_left:
+            warn(f'\nSurface "{layer.name}" is out of vectors direction: '
+                 f'theta={vector.theta:.3f}, '
+                 f'intersection at (y,z)=({current_y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
+            continue
+
+        # check if initial point of the vector is located on the boundary
+        intersection_point = Point(x=0, y=current_y, z=z_surf_intersection)
+        vector_difference = vector.initial_point.get_distance(intersection_point)
+        if vector_difference <= vector.w_length * QUARTER_PART_IN_MM:
+            material_at_the_left = layer.side==Side.LEFT
+            warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
+                 f'Vector directed to {vector.theta}, material is at the {layer.side}')
+            if vector_directed_left == material_at_the_left:
+                continue
+
+        approved_ys.append(current_y)
+    return approved_ys
+
+
+def _find_closest_intersection(*, approved_intersections: List[Point], vector: Vector) -> Point:
+    """
+    In the list of points finds the closest point to vector
+    """
+    min_distance = float('inf')
+    cand = None
+    for point in approved_intersections:
+        current_distance = point.get_distance(vector.initial_point)
+        if current_distance < min_distance:
+            min_distance = current_distance
+            cand = point
+    return cand
 
 class OpticalComponent:
     """
@@ -384,74 +467,11 @@ class OpticalComponent:
         return self._name
 
     @name.setter
-    def name(self,_val: str):
+    def name(self, _val: str):
         self._name = _val
-
-    @staticmethod
-    def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
-        """
-        Checks if each of given ys is:
-            1. at the semiplane to which vector is directed;
-            2. point on surface and point on line with the y are convergates.
-        :param probable_ys: List[float], list of probable y-coords
-        :param layer: a layer with concrete boundary
-        :param vector: concrete vector which intersections to be checked
-        :return: list of (y, z) pairs
-        """
-        surface = layer.boundary
-        line = vector.get_line_equation()
-        approved_ys = []
-        for current_y in probable_ys:
-            # get z-coord of intersection on surface
-            z_surf_intersection = surface(current_y)
-            # get z-coord of intersection on line
-            z_line_intersection = line(current_y)
-            # is this the same point?
-            difference = z_surf_intersection - z_line_intersection
-
-            if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
-                warn(f'Line and surface difference intersections: {difference}', NoIntersectionWarning)
-                # FIXME: check measures meters or milimeters?
-                continue
-
-            # check if vector is directed to the intersection
-            vector_directed_left = pi / 2 <= vector.theta <= 3 * pi / 2
-            intersection_is_righter = z_surf_intersection > vector.initial_point.z
-            if intersection_is_righter == vector_directed_left:
-                warn(f'Surface "{layer.name}" is out of vectors direction: '
-                     f'theta={vector.theta:.3f}, '
-                     f'intersection at (y,z)=({current_y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
-                continue
-
-            # check if initial point of the vector is located on the boundary
-            intersection_point = Point(x=0, y=current_y, z=z_surf_intersection)
-            vector_difference = vector.initial_point.get_distance(intersection_point)
-            if vector_difference <= vector.w_length * QUARTER_PART_IN_MM:
-                material_at_the_left = layer.side==Side.LEFT
-                warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
-                     f'Vector directed to {vector.theta}, material is at the {layer.side}')
-                if vector_directed_left == material_at_the_left:
-                    continue
-
-            approved_ys.append(current_y)
-        return approved_ys
 
     def _check_if_point_is_inside(self, *, point: Point) -> bool:
         return all((layer.contains_point(point=point) for layer in self._layers))
-
-    @staticmethod
-    def _find_closest_intersection(*, approved_intersections: List[Point], vector: Vector) -> Point:
-        """
-        In the list of points finds the closest point to vector
-        """
-        min_distance = float('inf')
-        cand = None
-        for point in approved_intersections:
-            current_distance = point.get_distance(vector.initial_point)
-            if current_distance < min_distance:
-                min_distance = current_distance
-                cand = point
-        return cand
 
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
@@ -460,36 +480,18 @@ class OpticalComponent:
         """
         found_intersections = {}
         for layer in self._layers:
-            found_intersections[id(layer)] = self._get_layer_intersection(vector=vector, layer=layer)
+            found_intersections[id(layer)] = layer.get_layer_intersection(vector=vector)
         if all(point is None for point in found_intersections.values()):
             raise VectorOutOfComponentWarning
-        closest_point = self._find_closest_intersection(approved_intersections=found_intersections.values(),
-                                                        vector=vector)
+        closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
+                                                   vector=vector)
         for k, v in found_intersections.items():
             closest_layer_id = k if v == closest_point else None
         assert closest_layer_id is not None, 'Closest point is found, but layer is not'
         closest_layer = ct.cast(closest_layer_id, ct.py_object).value
         return closest_layer, closest_point
 
-    def _get_layer_intersection(self, *, vector: Vector, layer: Layer) -> Point:
-        """
-        Returns valid closest intersection of the vector with boundary layer.boundary
-        :return: (y, z) coord of intersections with boundary - the closest intersection to the point .
-        """
-        line = vector.get_line_equation()
-        surface = layer.boundary
-        equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
-        probable_y_intersections = list(fsolve(equation, np.array(self._dimensions)))
-        approved_ys = self._check_probable_intersections(probable_ys=probable_y_intersections,
-                                                         layer=layer,
-                                                         vector=vector)
-        # [(y, z), .....]
-        approved_zs = [surface(y) for y in approved_ys]
-        assert len(approved_zs) == len(approved_ys)
-        approved_intersections = [Point(x=0, y=item[0], z=item[1]) for item in zip(approved_ys, approved_zs)]
-        closest_intersection = self._find_closest_intersection(approved_intersections=approved_intersections,
-                                                               vector=vector)
-        return closest_intersection
+
 
     @staticmethod
     def _get_normal_angle(*, intersection: Tuple[Layer, Point]) -> float:
@@ -576,6 +578,9 @@ def main():
     parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30-y ** 2 / 10 , side=Side.LEFT)
     second_lense.add_layer(new_layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
+    v = Vector(initial_point=Point(x=0, y=0.01, z=0), lum=1, w_length=555, theta=0.03+pi, psi=0)
+    print(plane_l.get_layer_intersection(vector=v))
+
 
 
 
