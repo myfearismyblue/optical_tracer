@@ -12,8 +12,8 @@ from scipy.optimize import fsolve
 import numpy as np
 
 OPT_SYS_DIMENSIONS = (-100, 100)
-QUARTER_PART_IN_MM = 10 ** (-6) / 4     # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
-TOLL = 10 ** -3                         # to use in scipy functions
+QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
+TOLL = 10 ** -3  # to use in scipy functions
 
 
 def kwargs_only(cls):
@@ -241,7 +241,7 @@ class Vector:
     def psi(self, value: Union[int, float]):
         self._psi = value
 
-    def get_line_equation(self, repr=False) -> Callable:
+    def get_line_equation(self, repr=False) -> Callable:        # FIXME: rename repr here
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
         A = 1 / tan(self.theta)
         B = self.initial_point.z - self.initial_point.y / tan(self.theta)
@@ -360,7 +360,7 @@ class Layer:
         surface = self.boundary
         equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
         probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
-                                                        # FIXME: throw input as attr. Think about this
+        # FIXME: throw input as attr. Think about this
         approved_ys = _check_probable_intersections(probable_ys=probable_y_intersections,
                                                     layer=self,
                                                     vector=vector)
@@ -387,13 +387,14 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
     line = vector.get_line_equation()
     approved_ys = []
     for current_y in probable_ys:
+
+        # check if z-coordinate at the line and at the surface convergate
         # get z-coord of intersection on surface
         z_surf_intersection = surface(current_y)
         # get z-coord of intersection on line
         z_line_intersection = line(current_y)
         # is this the same point?
         difference = z_surf_intersection - z_line_intersection
-
         if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
             warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
             # FIXME: check measures meters or milimeters?
@@ -412,7 +413,7 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
         intersection_point = Point(x=0, y=current_y, z=z_surf_intersection)
         vector_difference = vector.initial_point.get_distance(intersection_point)
         if vector_difference <= vector.w_length * QUARTER_PART_IN_MM:
-            material_at_the_left = layer.side==Side.LEFT
+            material_at_the_left = layer.side == Side.LEFT
             warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
                  f'Vector directed to {vector.theta}, material is at the {layer.side}')
             if vector_directed_left == material_at_the_left:
@@ -434,6 +435,7 @@ def _find_closest_intersection(*, approved_intersections: List[Point], vector: V
             min_distance = current_distance
             cand = point
     return cand
+
 
 class OpticalComponent:
     """
@@ -485,13 +487,13 @@ class OpticalComponent:
             raise VectorOutOfComponentWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
                                                    vector=vector)
+
         for k, v in found_intersections.items():
             closest_layer_id = k if v == closest_point else None
         assert closest_layer_id is not None, 'Closest point is found, but layer is not'
         closest_layer = ct.cast(closest_layer_id, ct.py_object).value
+
         return closest_layer, closest_point
-
-
 
     @staticmethod
     def _get_normal_angle(*, intersection: Tuple[Layer, Point]) -> float:
@@ -501,12 +503,28 @@ class OpticalComponent:
         """
         y: float = intersection[1].y
         surf_equation: Callable = intersection[0].boundary
-        normal_angle: float = ((3/2*pi - atan(-1/derivative(surf_equation, y, dx=TOLL))) % pi)
+        normal_angle: float = ((3 / 2 * pi - atan(-1 / derivative(surf_equation, y, dx=TOLL))) % pi)
         assert 0 <= normal_angle < pi
         return normal_angle
 
-    def _propagate_vector(self, *, vector: Vector, layer:  Layer, ):
-        pass
+    def propagate_vector(self, *, vector: Vector):
+        """
+        Changes input vector due its propagation in a component. Traces this vector to a boundary of the component,
+        but do not refract it
+        """
+        # get intersection
+        _, intersection_point = self._get_component_intersection(vector=vector)
+        # if exists do propagate
+        assert type(intersection_point) is Point
+        destination_distance = vector.initial_point.get_distance(intersection_point)
+        vector.initial_point = intersection_point
+
+
+        # find tangent and normal at the point of intersection
+        # do some magic to find next media
+        # refract vector
+
+
 
     @staticmethod
     def _get_refract_angle(*, vector_angle: float, normal_angle: float,
@@ -532,19 +550,12 @@ class OpticalComponent:
         ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
         return ret
 
-    def trace_vector_on_layer(self, *, vector: Vector, layer: Layer):  # FIXME: add return annotation
-        # get intersection
-        # if exists do propogate
-        # find tangent and normal at the point of intersection
-        # do some magic to find next media
-        # refract vector
-        raise NotImplementedError
-
 
 class OpticalSystem:
     """
     Entire system. Responses for propagating vector between components
     """
+
     def __init__(self):
         self._components: List[OpticalComponent] = []
 
@@ -556,7 +567,7 @@ def main():
     first_lense = OpticalComponent(name='first lense')
     first_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
     parabolic_l = Layer(name='parabolic',
-                        boundary=lambda y: y ** 2 / 10 ,
+                        boundary=lambda y: y ** 2 / 10,
                         side=Side.RIGHT,
                         )
     first_lense.add_layer(new_layer=parabolic_l)
@@ -572,17 +583,14 @@ def main():
     second_lense = OpticalComponent(name='second lense')
     second_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
 
-    plane_sec = Layer(name='plane_sec',boundary=lambda y: 20,side=Side.RIGHT)
+    plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
     second_lense.add_layer(new_layer=plane_sec)
 
-    parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30-y ** 2 / 10 , side=Side.LEFT)
+    parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
     second_lense.add_layer(new_layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0.01, z=0), lum=1, w_length=555, theta=0.03+pi, psi=0)
-    print(plane_l.get_layer_intersection(vector=v))
-
-
-
+    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03 + pi, psi=0)
+    print(parabolic_l.get_layer_intersection(vector=v))
 
 
 if __name__ == '__main__':
