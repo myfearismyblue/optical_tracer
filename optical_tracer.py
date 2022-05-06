@@ -254,11 +254,11 @@ class Vector:
 class Material:
     """
     Medium where energy vector propagates.
-    :param name, transparency, refractive_index
+    :param name, transmittance, refractive_index
     """
-    __slots__ = '_name', '_transparency', '_refractive_index'
+    __slots__ = '_name', '_transmittance', '_refractive_index'
     name: str
-    transparency: float
+    transmittance: float                # light absorption in % while tracing 1 sm of thickness
     refractive_index: float
 
     def __post_init__(self):
@@ -279,12 +279,12 @@ class Material:
         self._name = val
 
     @property
-    def transparency(self):
-        return self._transparency
+    def transmittance(self):
+        return self._transmittance
 
-    @transparency.setter
-    def transparency(self, val):
-        self._transparency = val
+    @transmittance.setter
+    def transmittance(self, val):
+        self._transmittance = val
 
     @property
     def refractive_index(self):
