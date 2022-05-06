@@ -14,6 +14,11 @@ import numpy as np
 OPT_SYS_DIMENSIONS = (-100, 100)
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 TOLL = 10 ** -3  # to use in scipy functions
+PERCENT = 0.01
+METRE = 1
+CENTIMETRE = METRE * 10**-2
+MILLIMETRE = METRE * 10**-3
+NANOMETRE = METRE * 10**-9
 
 
 def kwargs_only(cls):
@@ -263,7 +268,7 @@ class Material:
 
     def __post_init__(self):
         self._name: str = self.name
-        self._transparency: float = self.transparency
+        self._transmittance: float = self.transmittance
         self._refractive_index: float = self.refractive_index
 
     @classmethod
@@ -364,6 +369,8 @@ class Layer:
         approved_ys = _check_probable_intersections(probable_ys=probable_y_intersections,
                                                     layer=self,
                                                     vector=vector)
+        if not len(approved_ys):
+            return                                                  #FIXME: something wrong with it.
         # [(y, z), .....]
         approved_zs = [surface(y) for y in approved_ys]
         assert len(approved_zs) == len(approved_ys)
@@ -482,7 +489,9 @@ class OpticalComponent:
         """
         found_intersections = {}
         for layer in self._layers:
-            found_intersections[id(layer)] = layer.get_layer_intersection(vector=vector)
+            intersection_point: Point = layer.get_layer_intersection(vector=vector)
+            if intersection_point is not None:
+                found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
             raise VectorOutOfComponentWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
@@ -515,10 +524,12 @@ class OpticalComponent:
         # get intersection
         _, intersection_point = self._get_component_intersection(vector=vector)
         # if exists do propagate
-        assert type(intersection_point) is Point
+        # assert isinstance(intersection_point, Point)
         destination_distance = vector.initial_point.get_distance(intersection_point)
         vector.initial_point = intersection_point
-
+        attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
+        assert 0 <= attenuation <= 1
+        vector.lum -= attenuation * vector.lum
 
         # find tangent and normal at the point of intersection
         # do some magic to find next media
@@ -565,7 +576,7 @@ class OpticalSystem:
 
 def main():
     first_lense = OpticalComponent(name='first lense')
-    first_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
+    first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
     parabolic_l = Layer(name='parabolic',
                         boundary=lambda y: y ** 2 / 10,
                         side=Side.RIGHT,
@@ -581,7 +592,7 @@ def main():
     opt_sys.add_component(component=first_lense)
 
     second_lense = OpticalComponent(name='second lense')
-    second_lense.material = Material(name='Glass', transparency=0.9, refractive_index=1.5)
+    second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
 
     plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
     second_lense.add_layer(new_layer=plane_sec)
@@ -589,8 +600,11 @@ def main():
     parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
     second_lense.add_layer(new_layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03 + pi, psi=0)
-    print(parabolic_l.get_layer_intersection(vector=v))
+    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03 , psi=0)
+    first_lense.propagate_vector(vector=v)
+    print(v)
+
+
 
 
 if __name__ == '__main__':
