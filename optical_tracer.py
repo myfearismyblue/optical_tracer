@@ -523,7 +523,8 @@ class OpticalComponent:
         found_intersections = {}
         for layer in self._layers:
             intersection_point: Point = layer.get_layer_intersection(vector=vector)
-            if intersection_point is not None:
+            point_is_inside = self.check_if_point_is_inside(point=intersection_point)
+            if point_is_inside:
                 found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
             raise VectorOutOfComponentWarning
