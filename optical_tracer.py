@@ -642,7 +642,9 @@ def main():
                     )
     first_lense.add_layer(layer=plane_l)
 
-    opt_sys = OpticalSystem()
+    Air = Material(name="Air", transmittance=0, refractive_index=1)
+
+    opt_sys = OpticalSystem(default_medium=Air)
     opt_sys.add_component(component=first_lense)
 
     second_lense = OpticalComponent(name='second lense')
@@ -657,8 +659,6 @@ def main():
     v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03, psi=0)
     first_lense.propagate_vector(vector=v)
     print(v)
-
-
 
 
 if __name__ == '__main__':
