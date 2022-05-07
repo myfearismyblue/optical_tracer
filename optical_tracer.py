@@ -605,7 +605,27 @@ class OpticalSystem:
         self._components: List[OpticalComponent] = []
 
     def add_component(self, *, component):
+        # FIXME:do collision check
         self._components.append(component)
+
+    def get_containing_component(self, *, vector: Vector) -> OpticalComponent:
+        """Return the component of system which contains given vector or raises VectorOutOfComponentWarning"""
+        for component in self._components:
+            if component.check_if_vector_is_inside(vector=vector):
+                return component
+        else:
+            raise VectorOutOfComponentWarning('Vector is out of any component')
+
+    @staticmethod
+    def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
+        default_component = OpticalComponent(name="default medium")
+        default_component.material = default_medium
+        default_layer = Layer(name='default layer',
+                              boundary=lambda y: float('+inf'),
+                              side=Side.LEFT,
+                              )
+        default_component.add_layer(layer=default_layer)
+        return default_component
 
 
 def main():
