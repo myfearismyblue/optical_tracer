@@ -480,8 +480,8 @@ class OpticalComponent:
     def __repr__(self):
         return f'{self.name}, {super().__repr__()}'
 
-    def add_layer(self, *, new_layer: Layer):
-        self._layers.append(new_layer)
+    def add_layer(self, *, layer: Layer):
+        self._layers.append(layer)
 
     @property
     def material(self):
