@@ -501,8 +501,19 @@ class OpticalComponent:
     def name(self, _val: str):
         self._name = _val
 
-    def _check_if_point_is_inside(self, *, point: Point) -> bool:
-        return all((layer.contains_point(point=point) for layer in self._layers))
+    def check_if_point_is_inside(self, *, point: Point) -> bool:
+        """Returns true if the given point is in the boundaries (including) of all layers of the component"""
+        if point is None:
+            return False
+        return all(layer.contains_point(point=point) for layer in self._layers)
+
+    def check_if_vector_is_inside(self, *, vector: Vector) -> bool:
+        try:
+            res = self._get_component_intersection(vector=vector)
+            assert res, 'Something wrong with _get_component_intersection'
+            return bool(res)
+        except VectorOutOfComponentWarning:
+            return False
 
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
