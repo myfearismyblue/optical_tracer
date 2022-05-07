@@ -396,11 +396,15 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
     Checks if each of given ys is:
         1. at the semiplane to which vector is directed;
         2. point on surface and point on line with the y are convergates.
+    Checks if vector:
+        1. is in the medium of layer
+        2. is near the boundary, and if so where is it directed
     :param probable_ys: List[float], list of probable y-coords
     :param layer: a layer with concrete boundary
     :param vector: concrete vector which intersections to be checked
     :return: list of (y, z) pairs
     """
+    # FIXME: refactor this very long method
     surface = layer.boundary
     line = vector.get_line_equation()
     approved_ys = []
@@ -416,6 +420,13 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
         if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
             warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
             # FIXME: check measures meters or milimeters?
+            continue
+
+        # check if vector is located at appropriate layer.side
+        vector_is_righter = layer.boundary(vector.initial_point.y) < vector.initial_point.z
+        vector_is_lefter = not vector_is_righter
+        if vector_is_righter and layer.side == Side.LEFT \
+                or vector_is_lefter and layer.side == Side.RIGHT:
             continue
 
         # check if vector is directed to the intersection
