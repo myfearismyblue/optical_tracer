@@ -518,7 +518,7 @@ class OpticalComponent:
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
         Returns the tuple (layer, point) of vector intersection with the component as a minimum of distances
-        to layers' intersections.
+        to layers' intersections only if vector is on the component.
         """
         found_intersections = {}
         for layer in self._layers:
