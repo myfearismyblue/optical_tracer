@@ -246,12 +246,23 @@ class Vector:
     def psi(self, value: Union[int, float]):
         self._psi = value
 
-    def get_line_equation(self, repr=False) -> Callable:        # FIXME: rename repr here
+    def get_line_equation(self, repr=False) -> Callable:  # FIXME: rename repr here
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
-        A = 1 / tan(self.theta)
-        B = self.initial_point.z - self.initial_point.y / tan(self.theta)
-        print(f'{A}*y + {B}') if repr else None
-        return lambda y: A * y + B
+        try:
+            A = 1 / tan(self.theta)
+            B = self.initial_point.z - self.initial_point.y / tan(self.theta)
+            print(f'{A}*y + {B}') if repr else None
+            return lambda y: A * y + B
+        except ZeroDivisionError:
+            # FIXME: fix whis stab
+            def output_behaviour(y):
+                return float('inf')
+            #     if y == self.initial_point.z:
+            #         return self.initial_point.z
+            #     else:
+            #         return float('inf')
+            #
+            return output_behaviour
 
 
 @kwargs_only
