@@ -16,9 +16,9 @@ QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (
 TOLL = 10 ** -3  # to use in scipy functions
 PERCENT = 0.01
 METRE = 1
-CENTIMETRE = METRE * 10**-2
-MILLIMETRE = METRE * 10**-3
-NANOMETRE = METRE * 10**-9
+SCENTIMETRE = METRE * 10 ** -2
+MILLIMETRE = METRE * 10 ** -3
+NANOMETRE = METRE * 10 ** -9
 
 
 def kwargs_only(cls):
@@ -274,7 +274,7 @@ class Material:
     """
     __slots__ = '_name', '_transmittance', '_refractive_index'
     name: str
-    transmittance: float                # light absorption in % while tracing 1 sm of thickness
+    transmittance: float  # light absorption in % while tracing 1 sm of thickness
     refractive_index: float
 
     def __post_init__(self):
@@ -381,7 +381,7 @@ class Layer:
                                                     layer=self,
                                                     vector=vector)
         if not len(approved_ys):
-            return                                                  #FIXME: something wrong with it.
+            return  # FIXME: something wrong with it.
         # [(y, z), .....]
         approved_zs = [surface(y) for y in approved_ys]
         assert len(approved_zs) == len(approved_ys)
@@ -569,8 +569,6 @@ class OpticalComponent:
         # do some magic to find next media
         # refract vector
 
-
-
     @staticmethod
     def _get_refract_angle(*, vector_angle: float, normal_angle: float,
                            refractive_index1: float, refractive_index2: float) -> float:
@@ -601,7 +599,9 @@ class OpticalSystem:
     Entire system. Responses for propagating vector between components
     """
 
-    def __init__(self):
+    def __init__(self, *, default_medium: Material = Material(name="Air", transmittance=0, refractive_index=1)):
+        # FIXME: Make default here global
+        self.default_background_component = self._init_default_background_component(default_medium=default_medium)
         self._components: List[OpticalComponent] = []
 
     def add_component(self, *, component):
@@ -635,12 +635,12 @@ def main():
                         boundary=lambda y: y ** 2 / 10,
                         side=Side.RIGHT,
                         )
-    first_lense.add_layer(new_layer=parabolic_l)
+    first_lense.add_layer(layer=parabolic_l)
     plane_l = Layer(name='plane',
                     boundary=lambda y: 10,
                     side=Side.LEFT,
                     )
-    first_lense.add_layer(new_layer=plane_l)
+    first_lense.add_layer(layer=plane_l)
 
     opt_sys = OpticalSystem()
     opt_sys.add_component(component=first_lense)
@@ -649,12 +649,12 @@ def main():
     second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
 
     plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
-    second_lense.add_layer(new_layer=plane_sec)
+    second_lense.add_layer(layer=plane_sec)
 
     parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
-    second_lense.add_layer(new_layer=parabolic_sec)
+    second_lense.add_layer(layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03 , psi=0)
+    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03, psi=0)
     first_lense.propagate_vector(vector=v)
     print(v)
 
