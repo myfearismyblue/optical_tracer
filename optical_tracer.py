@@ -361,7 +361,7 @@ class Layer:
         """
         Checks if input point and material (self.side) are at a same side of boundary
         """
-        point_right = point.z > self.boundary(point.y)
+        point_right = point.z >= self.boundary(point.y)
         point_left = not point_right
         if (point_right and self.side == Side.RIGHT) or (point_left and self.side == Side.LEFT):
             return True
