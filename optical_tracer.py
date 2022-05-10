@@ -550,24 +550,23 @@ class OpticalComponent:
         assert 0 <= normal_angle < pi
         return normal_angle
 
-    def propagate_vector(self, *, vector: Vector):
+    def propagate_vector(self, *, input_vector: Vector) -> Vector:
         """
-        Changes input vector due its propagation in a component. Traces this vector to a boundary of the component,
-        but do not refract it
+        Crates a new instance if vector due propagation of input vector in a component. Traces this vector
+        to a boundary of the component, but do not refract it
         """
         # get intersection
-        _, intersection_point = self._get_component_intersection(vector=vector)
-        # if exists do propagate
-        # assert isinstance(intersection_point, Point)
-        destination_distance = vector.initial_point.get_distance(intersection_point)
-        vector.initial_point = intersection_point
+        intersection = intersection_layer, intersection_point = self._get_component_intersection(vector=input_vector)
+        # TODO: check existence of intersection
+        destination_distance = input_vector.initial_point.get_distance(intersection_point)
         attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
         assert 0 <= attenuation <= 1
-        vector.lum -= attenuation * vector.lum
-
-        # find tangent and normal at the point of intersection
-        # do some magic to find next media
-        # refract vector
+        attenuated_lum = input_vector.lum - attenuation * input_vector.lum
+        output_theta = input_vector.theta
+        output_psi = input_vector.psi
+        output_vector = Vector(initial_point=intersection_point, lum=attenuated_lum, w_length = input_vector.w_length,
+                               theta=output_theta, psi=output_psi)
+        return output_vector
 
     @staticmethod
     def _get_refract_angle(*, vector_angle: float, normal_angle: float,
@@ -608,7 +607,7 @@ class OpticalSystem:
         # FIXME:do collision check
         self._components.append(component)
 
-    def get_containing_component(self, *, vector: Vector) -> OpticalComponent:
+    def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
         """Return the component of system which contains given vector or raises VectorOutOfComponentWarning"""
         for component in self._components:
             if component.check_if_vector_is_inside(vector=vector):
@@ -669,7 +668,7 @@ def main():
     second_lense.add_layer(layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
     v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03, psi=0)
-    first_lense.propagate_vector(vector=v)
+    first_lense.propagate_vector(input_vector=v)
     print(v)
 
 
