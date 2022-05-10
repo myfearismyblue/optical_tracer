@@ -16,7 +16,7 @@ QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (
 TOLL = 10 ** -3  # to use in scipy functions
 PERCENT = 0.01
 METRE = 1
-SCENTIMETRE = METRE * 10 ** -2
+CENTIMETRE = METRE * 10 ** -2
 MILLIMETRE = METRE * 10 ** -3
 NANOMETRE = METRE * 10 ** -9
 
@@ -625,6 +625,19 @@ class OpticalSystem:
                               )
         default_component.add_layer(layer=default_layer)
         return default_component
+
+    def trace(self, vector: Vector):
+        """FIXME"""
+        # beginning of loop:
+        #   finds component or background where vector is located
+        #   gets equation for the vector's line
+        #   finds closest intersections with components in system
+        #       if no such point: end of the loop
+        #   creates a new instance of Vector at the point of this intersection
+        #   gets a refracted angle
+        #   creates a new instance of refractored Vector
+        #   propagate vector to a boundary of the component
+        # end of iteration
 
 
 def main():
