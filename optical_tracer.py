@@ -613,8 +613,7 @@ class OpticalSystem:
         for component in self._components:
             if component.check_if_vector_is_inside(vector=vector):
                 return component
-        else:
-            raise VectorOutOfComponentWarning('Vector is out of any component')
+        raise VectorOutOfComponentWarning('Vector is out of any component')
 
     @staticmethod
     def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
