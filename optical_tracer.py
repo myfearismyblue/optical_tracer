@@ -602,6 +602,7 @@ class OpticalSystem:
         # FIXME: Make default here global
         self.default_background_component = self._init_default_background_component(default_medium=default_medium)
         self._components: List[OpticalComponent] = []
+        self._vectors: Dict[Vector, List[Vector]] = {}
 
     @staticmethod
     def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
@@ -617,6 +618,14 @@ class OpticalSystem:
     def add_component(self, *, component) -> None:
         # FIXME:do collision check
         self._components.append(component)
+
+    def add_initial_vector(self, *, initial_vector: Vector) -> None:
+        """Adds only initial vector of a beam."""
+        self._vectors[initial_vector] = [initial_vector]
+
+    def _append_to_beam(self, *, initial_vector: Vector, node_vector: Vector) -> None:
+        """Adds node-vector to a beam, initiated by initial vector"""
+        self._vectors[initial_vector].append(node_vector)
 
     def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
         """Return the component of system which contains given vector or raises VectorOutOfComponentWarning"""
