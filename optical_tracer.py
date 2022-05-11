@@ -645,7 +645,18 @@ class OpticalSystem:
         raise NotImplementedError(vector)
 
     def trace(self, vector: Vector):
-        """FIXME"""
+        """Traces vector through the whole optical system"""
+        current_vector = initial_vector = vector
+        self.add_initial_vector(initial_vector=initial_vector)
+        while True:
+            current_component = self.get_containing_component_or_default(vector=current_vector)
+            try:    # FIXME:  make this outer func.
+                current_vector = current_component.propagate_vector(input_vector=current_vector)
+            except VectorOutOfComponentWarning:
+                raise NotImplementedError('Seems to be found nothing')
+            current_vector = self.refract(vector=current_vector)
+            self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
+
         # beginning of loop:
         #   finds component or background where vector is located
         #   gets equation for the vector's line
