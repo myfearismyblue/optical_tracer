@@ -603,7 +603,18 @@ class OpticalSystem:
         self.default_background_component = self._init_default_background_component(default_medium=default_medium)
         self._components: List[OpticalComponent] = []
 
-    def add_component(self, *, component):
+    @staticmethod
+    def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
+        default_component = OpticalComponent(name="default medium")
+        default_component.material = default_medium
+        default_layer = Layer(name='default layer',
+                              boundary=lambda y: float('+inf'),
+                              side=Side.LEFT,
+                              )
+        default_component.add_layer(layer=default_layer)
+        return default_component
+
+    def add_component(self, *, component) -> None:
         # FIXME:do collision check
         self._components.append(component)
 
