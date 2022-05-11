@@ -634,16 +634,15 @@ class OpticalSystem:
                 return component
         raise VectorOutOfComponentWarning('Vector is out of any component')
 
-    @staticmethod
-    def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
-        default_component = OpticalComponent(name="default medium")
-        default_component.material = default_medium
-        default_layer = Layer(name='default layer',
-                              boundary=lambda y: float('+inf'),
-                              side=Side.LEFT,
-                              )
-        default_component.add_layer(layer=default_layer)
-        return default_component
+    def get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
+        """Returns thc component of system which contains given vector or returns default background"""
+        try:
+            return self._get_containing_component(vector=vector)
+        except VectorOutOfComponentWarning:
+            return self.default_background_component
+
+    def refract(self, *, vector: Vector) -> Vector:
+        raise NotImplementedError(vector)
 
     def trace(self, vector: Vector):
         """FIXME"""
