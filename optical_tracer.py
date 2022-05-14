@@ -519,14 +519,16 @@ class OpticalComponent:
 
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
-        Returns the tuple (layer, point) of vector intersection with the component as a minimum of distances
-        to layers' intersections only if vector is on the component.
+        Returns the tuple (layer, point) of vector's intersection with the component as a minimum of distances
+        to layers' intersections only if vector is in the component.
         """
         found_intersections = {}
+        if not self.check_if_point_is_inside(point=vector.initial_point):
+            raise VectorOutOfComponentWarning
         for layer in self._layers:
             intersection_point: Point = layer.get_layer_intersection(vector=vector)
-            point_is_inside = self.check_if_point_is_inside(point=intersection_point)
-            if point_is_inside:
+            intersection_point_is_inside = self.check_if_point_is_inside(point=intersection_point)
+            if intersection_point_is_inside:
                 found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
             raise VectorOutOfComponentWarning
