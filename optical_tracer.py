@@ -625,11 +625,11 @@ class OpticalSystem:
 
     def add_initial_vector(self, *, initial_vector: Vector) -> None:
         """Adds only initial vector of a beam."""
-        self._vectors[initial_vector] = [initial_vector]
+        self._vectors[id(initial_vector)] = [initial_vector]
 
     def _append_to_beam(self, *, initial_vector: Vector, node_vector: Vector) -> None:
         """Adds node-vector to a beam, initiated by initial vector"""
-        self._vectors[initial_vector].append(node_vector)
+        self._vectors[id(initial_vector)].append(node_vector)
 
     def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
         """Return the component of system which contains given vector or raises VectorOutOfComponentWarning"""
@@ -701,10 +701,9 @@ def main():
     parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
     second_lense.add_layer(layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=0.01), lum=1, w_length=555, theta=0.03, psi=0)
-    first_lense.propagate_vector(input_vector=v)
-    print(v)
-
+    v = Vector(initial_point=Point(x=0, y=0, z=25), lum=1, w_length=555, theta=0.03, psi=0)
+    opt_sys.trace(vector=v)
+    pass
 
 if __name__ == '__main__':
     main()
