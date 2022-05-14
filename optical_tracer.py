@@ -456,6 +456,8 @@ def _find_closest_intersection(*, approved_intersections: List[Point], vector: V
     """
     In the list of points finds the closest point to vector
     """
+    if not len(approved_intersections):
+        raise NoIntersectionWarning('Nothing to be closest, approved layer''s intersections is empty')
     min_distance = float('inf')
     cand = None
     for point in approved_intersections:
