@@ -637,17 +637,18 @@ class DefaultOpticalComponent(OpticalComponent):
 
     def _get_component_intersection(self, *, vector: Vector, components: List[OpticalComponent]) -> Tuple[Layer, Point]:
         found_intersections = {}
-        if not self.check_if_point_is_inside(point=vector.initial_point, components=components):
-            raise VectorOutOfComponentWarning
-        for layer in self._layers:
-            try:
-                intersection_point: Point = layer.get_layer_intersection(vector=vector)
-            except NoIntersectionWarning:
-                found_intersections[id(layer)] = None
+        # if not self.check_if_point_is_inside(point=vector.initial_point, components=components):
+        #     raise VectorOutOfComponentException
+        for component in components:        # use optsystem components to check if points are inside
+            for layer in self.get_layers():
+                try:
+                    intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
+                except NoIntersectionWarning:
+                    intersection_point = None
 
-            intersection_point_is_inside = self.check_if_point_is_inside(point=intersection_point, components=components)
-            if intersection_point_is_inside:
-                found_intersections[id(layer)] = intersection_point
+                intersection_point_is_inside = component.check_if_point_is_inside(point=intersection_point)
+                if intersection_point_is_inside:
+                    found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
             raise NoIntersectionWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
@@ -655,7 +656,7 @@ class DefaultOpticalComponent(OpticalComponent):
 
         closest_layer_id = None
         for k, v in found_intersections.items():
-            closest_layer_id = k if v == closest_point else None
+            closest_layer_id = k if v == closest_point else closest_layer_id
         assert closest_layer_id is not None, 'Closest point is found, but layer is not'
         closest_layer = ct.cast(closest_layer_id, ct.py_object).value
 
@@ -677,12 +678,10 @@ class OpticalSystem:
         # FIXME: Make default here global
         self._components: List[OpticalComponent] = []
         self._vectors: Dict[int, List[Vector]] = {}
-        self.default_background_component = self._init_default_background_component(default_medium=default_medium)
-        self._components: List[OpticalComponent] = []
-        self._vectors: Dict[Vector, List[Vector]] = {}
+        self.default_background_component: DefaultOpticalComponent = \
+            self._init_default_background_component(default_medium=default_medium)
 
-
-    def _init_default_background_component(self, *, default_medium: Material) -> OpticalComponent:
+    def _init_default_background_component(self, *, default_medium: Material) -> DefaultOpticalComponent:
         """Inits an instance of an optical component -  a special component which negates entire  optical layers"""
         default_component = DefaultOpticalComponent(name="default medium")
         default_component.material = default_medium
