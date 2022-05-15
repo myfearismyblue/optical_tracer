@@ -31,7 +31,7 @@ def kwargs_only(cls):
     return call
 
 
-class VectorOutOfComponentWarning(Warning):
+class VectorOutOfComponentException(Exception):
     """Raises then coords of a vector are out of optical component which it was given"""
     pass
 
@@ -532,7 +532,7 @@ class OpticalComponent:
             res = self._get_component_intersection(vector=vector)
             assert res, 'Something wrong with _get_component_intersection'
             return bool(res)
-        except VectorOutOfComponentWarning:
+        except (VectorOutOfComponentException, NoIntersectionWarning):
             return False
 
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
@@ -542,7 +542,7 @@ class OpticalComponent:
         """
         found_intersections = {}
         if not self.check_if_point_is_inside(point=vector.initial_point):
-            raise VectorOutOfComponentWarning
+            raise VectorOutOfComponentException
         for layer in self._layers:
             try:
                 intersection_point: Point = layer.get_layer_intersection(vector=vector)
@@ -716,13 +716,13 @@ class OpticalSystem:
         for component in self._components:
             if component.check_if_vector_is_inside(vector=vector):
                 return component
-        raise VectorOutOfComponentWarning('Vector is out of any component')
+        raise VectorOutOfComponentException('Vector is out of any component')
 
     def get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
         """Returns thc component of system which contains given vector or returns default background"""
         try:
             return self._get_containing_component(vector=vector)
-        except VectorOutOfComponentWarning:
+        except VectorOutOfComponentException:
             return self.default_background_component
 
     def refract(self, *, vector: Vector) -> Vector:

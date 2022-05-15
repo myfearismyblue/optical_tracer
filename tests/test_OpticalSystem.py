@@ -1,6 +1,6 @@
 import pytest
 from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point
-from optical_tracer import reversed_side, Side, Vector, VectorOutOfComponentWarning
+from optical_tracer import reversed_side, Side, Vector, VectorOutOfComponentException
 from math import pi
 
 deg = 2 * pi / 360
@@ -100,9 +100,9 @@ def test_get_containing_component(vector, expected):
     assert opt_sys.get_containing_component(vector=vector).name == expected
 
 
-@pytest.mark.parametrize('vector, expected_exception', [(v[2], VectorOutOfComponentWarning),
-                                                        (v[3], VectorOutOfComponentWarning),
-                                                        (v[4], VectorOutOfComponentWarning),
+@pytest.mark.parametrize('vector, expected_exception', [(v[2], VectorOutOfComponentException),
+                                                        (v[3], VectorOutOfComponentException),
+                                                        (v[4], VectorOutOfComponentException),
                                                         ])
 def test_get_containing_component(vector, expected_exception):
     with pytest.raises(expected_exception):
