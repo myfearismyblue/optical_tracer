@@ -11,6 +11,7 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 import numpy as np
 
+DEBUG = 1
 OPT_SYS_DIMENSIONS = (-100, 100)
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 TOLL = 10 ** -3  # to use in scipy functions
@@ -429,7 +430,8 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
         # is this the same point?
         difference = z_surf_intersection - z_line_intersection
         if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
-            warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
+            if DEBUG:
+                warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
             # FIXME: check measures meters or milimeters?
             continue
 
@@ -444,9 +446,10 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
         vector_directed_left = pi / 2 <= vector.theta <= 3 * pi / 2
         intersection_is_righter = z_surf_intersection > vector.initial_point.z
         if intersection_is_righter == vector_directed_left:
-            warn(f'\nSurface "{layer.name}" is out of vectors direction: '
-                 f'theta={vector.theta:.3f}, '
-                 f'intersection at (y,z)=({current_y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
+            if DEBUG:
+                warn(f'\nSurface "{layer.name}" is out of vectors direction: '
+                     f'theta={vector.theta:.3f}, '
+                     f'intersection at (y,z)=({current_y:.3f}, {z_surf_intersection:.3f})', NoIntersectionWarning)
             continue
 
         # check if initial point of the vector is located on the boundary
@@ -454,8 +457,9 @@ def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vec
         vector_difference = vector.initial_point.get_distance(intersection_point)
         if vector_difference <= vector.w_length * QUARTER_PART_IN_MM:
             material_at_the_left = layer.side == Side.LEFT
-            warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
-                 f'Vector directed to {vector.theta}, material is at the {layer.side}')
+            if DEBUG:
+                warn(f'\nVector seems to be close to boundary: difference is {vector_difference} mm \n'
+                     f'Vector directed to {vector.theta}, material is at the {layer.side}')
             if vector_directed_left == material_at_the_left:
                 continue
 
