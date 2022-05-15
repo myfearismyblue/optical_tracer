@@ -756,9 +756,12 @@ class OpticalSystem:
         self.add_initial_vector(initial_vector=initial_vector)
         while True:
             current_component = self.get_containing_component_or_default(vector=current_vector)
-            try:    # FIXME:  make this outer func.
-                current_vector = current_component.propagate_vector(input_vector=current_vector)
-            except VectorOutOfComponentWarning:
+            try:  # FIXME:  make this outer func.
+                current_vector = current_component.propagate_vector(input_vector=current_vector, components=self._components)
+            except NoIntersectionWarning:
+                if DEBUG:
+                    print(*list(self._vectors.values())[0], sep='\n')
+                    break
                 raise NotImplementedError('Seems to be found nothing')
             current_vector = self.refract(vector=current_vector)
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
@@ -791,16 +794,17 @@ def main():
     plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
     second_lense.add_layer(layer=plane_sec)
 
-    parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
+    parabolic_sec = Layer(name='parabolic_sec', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
     second_lense.add_layer(layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=-10), lum=1, w_length=555, theta=0.03, psi=0)
-    # opt_sys.trace(vector=v)
+    v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=1, psi=0)
+    opt_sys.trace(vector=v)
 
-    def_comp = opt_sys.default_background_component
-    a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)
+    # def_comp: DefaultOpticalComponent = opt_sys.default_background_component
+    # a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)
+    #
+    # print(a)
 
-    pass
 
 if __name__ == '__main__':
     main()
