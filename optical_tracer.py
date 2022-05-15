@@ -581,7 +581,7 @@ class OpticalComponent:
         assert 0 <= normal_angle < pi
         return normal_angle
 
-    def propagate_vector(self, *, input_vector: Vector) -> Vector:
+    def propagate_vector(self, *, input_vector: Vector, components=None) -> Vector:
         """
         Creates a new instance if vector due propagation of input vector in a component. Traces this vector
         to a boundary of the component, but do not refract it
