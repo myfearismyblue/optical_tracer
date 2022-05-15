@@ -724,7 +724,7 @@ class OpticalSystem:
         self._vectors[id(initial_vector)].append(node_vector)
 
     def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
-        """Return the component of system which contains given vector or raises VectorOutOfComponentWarning"""
+        """Return the component of system which contains given vector or raises VectorOutOfComponentException"""
         for component in self._components:
             if component.check_if_vector_is_inside(vector=vector):
                 return component
@@ -742,6 +742,16 @@ class OpticalSystem:
 
     def trace(self, vector: Vector):
         """Traces vector through the whole optical system"""
+        # beginning of loop:
+        #   finds component or background where vector is located
+        #   gets equation for the vector's line
+        #   finds closest intersections with components in system
+        #       if no such point: end of the loop
+        #   creates a new instance of Vector at the point of this intersection
+        #   gets a refracted angle
+        #   creates a new instance of refractored Vector
+        #   propagate vector to a boundary of the component
+        # end of iteration
         current_vector = initial_vector = vector
         self.add_initial_vector(initial_vector=initial_vector)
         while True:
@@ -753,16 +763,7 @@ class OpticalSystem:
             current_vector = self.refract(vector=current_vector)
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
 
-        # beginning of loop:
-        #   finds component or background where vector is located
-        #   gets equation for the vector's line
-        #   finds closest intersections with components in system
-        #       if no such point: end of the loop
-        #   creates a new instance of Vector at the point of this intersection
-        #   gets a refracted angle
-        #   creates a new instance of refractored Vector
-        #   propagate vector to a boundary of the component
-        # end of iteration
+
 
 
 def main():
