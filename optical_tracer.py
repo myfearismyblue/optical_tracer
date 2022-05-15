@@ -316,6 +316,11 @@ class Side(Enum):
     LEFT = auto()
 
 
+def reversed_side(side: Side) -> Side:
+    assert isinstance(side, Side)
+    return Side.RIGHT if side == Side.LEFT else Side.LEFT
+
+
 @kwargs_only
 @dataclass
 class Layer:
@@ -389,6 +394,12 @@ class Layer:
         closest_intersection = _find_closest_intersection(approved_intersections=approved_intersections,
                                                           vector=vector)
         return closest_intersection
+
+    def reverted_layer(self):
+        opposite_side = reversed_side(self.side)
+        boundary = self.boundary
+        opposite_name = f'opposite {self.name}'
+        return Layer(boundary=boundary, side=opposite_side, name=opposite_name)
 
 
 def _check_probable_intersections(*, probable_ys: List[float], layer: Layer, vector: Vector) -> List[float]:
@@ -612,16 +623,26 @@ class OpticalSystem:
     def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
         default_component = OpticalComponent(name="default medium")
         default_component.material = default_medium
-        default_layer = Layer(name='default layer',
-                              boundary=lambda y: float('+inf'),
-                              side=Side.LEFT,
-                              )
-        default_component.add_layer(layer=default_layer)
+        self._add_and_compose_default_layers(default_component)
         return default_component
+
+    def _add_and_compose_default_layers(self, default_component):
+        default_layers = self._compose_default_layers()
+        default_component.delete_all_layers()
+        [default_component.add_layer(layer=layer) for layer in default_layers]
+
+    def _compose_default_layers(self):
+        """Composes a list of layers which have opposite sides of all layers in opt system"""
+        ret = []
+        for component in self._components:
+            for layer in component.get_layers():
+                ret.append(layer.reverted_layer())
+        return ret
 
     def add_component(self, *, component) -> None:
         # FIXME:do collision check
         self._components.append(component)
+        self._add_and_compose_default_layers(self.default_background_component)
 
     def add_initial_vector(self, *, initial_vector: Vector) -> None:
         """Adds only initial vector of a beam."""
