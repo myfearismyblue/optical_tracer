@@ -496,6 +496,12 @@ class OpticalComponent:
     def add_layer(self, *, layer: Layer):
         self._layers.append(layer)
 
+    def delete_all_layers(self):
+        self._layers = []
+
+    def get_layers(self):
+        return self._layers
+
     @property
     def material(self):
         if self._material is None:
@@ -615,12 +621,15 @@ class OpticalSystem:
 
     def __init__(self, *, default_medium: Material = Material(name="Air", transmittance=0, refractive_index=1)):
         # FIXME: Make default here global
+        self._components: List[OpticalComponent] = []
+        self._vectors: Dict[int, List[Vector]] = {}
         self.default_background_component = self._init_default_background_component(default_medium=default_medium)
         self._components: List[OpticalComponent] = []
         self._vectors: Dict[Vector, List[Vector]] = {}
 
-    @staticmethod
-    def _init_default_background_component(*, default_medium: Material) -> OpticalComponent:
+
+    def _init_default_background_component(self, *, default_medium: Material) -> OpticalComponent:
+        """Inits an instance of an optical component -  a special component which negates entire  optical layers"""
         default_component = OpticalComponent(name="default medium")
         default_component.material = default_medium
         self._add_and_compose_default_layers(default_component)
