@@ -664,9 +664,18 @@ class DefaultOpticalComponent(OpticalComponent):
 
     def propagate_vector(self, *, input_vector: Vector, components: List[OpticalComponent]) -> Vector:
         """Stub"""
-        raise NotImplementedError
-
-
+        intersection = intersection_layer, intersection_point = \
+            self._get_component_intersection(vector=input_vector, components=components)
+        # TODO: check existence of intersection
+        destination_distance = input_vector.initial_point.get_distance(intersection_point)
+        attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
+        assert 0 <= attenuation <= 1
+        attenuated_lum = input_vector.lum - attenuation * input_vector.lum
+        output_theta = input_vector.theta
+        output_psi = input_vector.psi
+        output_vector = Vector(initial_point=intersection_point, lum=attenuated_lum, w_length=input_vector.w_length,
+                               theta=output_theta, psi=output_psi)
+        return output_vector
 
 
 class OpticalSystem:
