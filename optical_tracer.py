@@ -619,6 +619,11 @@ class OpticalComponent:
         return ret
 
 
+class DefaultOpticalComponent(OpticalComponent):
+    """Special cls for default background component with overloaded methods"""
+    ...
+
+
 class OpticalSystem:
     """
     Entire system. Responses for propagating vector between components
