@@ -527,6 +527,7 @@ class OpticalComponent:
         return all(layer.contains_point(point=point) for layer in self._layers)
 
     def check_if_vector_is_inside(self, *, vector: Vector) -> bool:
+        """Returns true if given vector"""
         try:
             res = self._get_component_intersection(vector=vector)
             assert res, 'Something wrong with _get_component_intersection'
@@ -621,7 +622,46 @@ class OpticalComponent:
 
 class DefaultOpticalComponent(OpticalComponent):
     """Special cls for default background component with overloaded methods"""
-    ...
+
+    def check_if_point_is_inside(self, *, point: Point, components: List[OpticalComponent]) -> bool:
+        """Returns true if the given point is not in any of components in opt system"""
+        return not any(component.check_if_point_is_inside(point=point) for component in components)
+
+    def check_if_vector_is_inside(self, *, vector: Vector, components: List[OpticalComponent]) -> bool:
+        """Returns true if the given vector is not in any of components in opt system"""
+        return not any(component.check_if_vector_is_inside(vector=vector) for component in components)
+
+    def _get_component_intersection(self, *, vector: Vector, components: List[OpticalComponent]) -> Tuple[Layer, Point]:
+        found_intersections = {}
+        if not self.check_if_point_is_inside(point=vector.initial_point, components=components):
+            raise VectorOutOfComponentWarning
+        for layer in self._layers:
+            try:
+                intersection_point: Point = layer.get_layer_intersection(vector=vector)
+            except NoIntersectionWarning:
+                found_intersections[id(layer)] = None
+
+            intersection_point_is_inside = self.check_if_point_is_inside(point=intersection_point, components=components)
+            if intersection_point_is_inside:
+                found_intersections[id(layer)] = intersection_point
+        if all(point is None for point in found_intersections.values()):
+            raise NoIntersectionWarning
+        closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
+                                                   vector=vector)
+
+        closest_layer_id = None
+        for k, v in found_intersections.items():
+            closest_layer_id = k if v == closest_point else None
+        assert closest_layer_id is not None, 'Closest point is found, but layer is not'
+        closest_layer = ct.cast(closest_layer_id, ct.py_object).value
+
+        return closest_layer, closest_point
+
+    def propagate_vector(self, *, input_vector: Vector, components: List[OpticalComponent]) -> Vector:
+        """Stub"""
+        raise NotImplementedError
+
+
 
 
 class OpticalSystem:
@@ -640,7 +680,7 @@ class OpticalSystem:
 
     def _init_default_background_component(self, *, default_medium: Material) -> OpticalComponent:
         """Inits an instance of an optical component -  a special component which negates entire  optical layers"""
-        default_component = OpticalComponent(name="default medium")
+        default_component = DefaultOpticalComponent(name="default medium")
         default_component.material = default_medium
         self._add_and_compose_default_layers(default_component)
         return default_component
@@ -741,8 +781,12 @@ def main():
     parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
     second_lense.add_layer(layer=parabolic_sec)
     opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=25), lum=1, w_length=555, theta=0.03, psi=0)
-    opt_sys.trace(vector=v)
+    v = Vector(initial_point=Point(x=0, y=0, z=-10), lum=1, w_length=555, theta=0.03, psi=0)
+    # opt_sys.trace(vector=v)
+
+    def_comp = opt_sys.default_background_component
+    a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)
+
     pass
 
 if __name__ == '__main__':
