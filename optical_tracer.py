@@ -386,7 +386,7 @@ class Layer:
                                                     layer=self,
                                                     vector=vector)
         if not len(approved_ys):
-            return  # FIXME: something wrong with it.
+            raise NoIntersectionWarning
         # [(y, z), .....]
         approved_zs = [surface(y) for y in approved_ys]
         assert len(approved_zs) == len(approved_ys)
@@ -543,15 +543,20 @@ class OpticalComponent:
         if not self.check_if_point_is_inside(point=vector.initial_point):
             raise VectorOutOfComponentWarning
         for layer in self._layers:
-            intersection_point: Point = layer.get_layer_intersection(vector=vector)
+            try:
+                intersection_point: Point = layer.get_layer_intersection(vector=vector)
+            except NoIntersectionWarning:
+                found_intersections[id(layer)] = None
+
             intersection_point_is_inside = self.check_if_point_is_inside(point=intersection_point)
             if intersection_point_is_inside:
                 found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
-            raise VectorOutOfComponentWarning
+            raise NoIntersectionWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
                                                    vector=vector)
 
+        closest_layer_id = None
         for k, v in found_intersections.items():
             closest_layer_id = k if v == closest_point else None
         assert closest_layer_id is not None, 'Closest point is found, but layer is not'
