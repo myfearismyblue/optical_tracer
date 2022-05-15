@@ -563,7 +563,7 @@ class OpticalComponent:
 
         closest_layer_id = None
         for k, v in found_intersections.items():
-            closest_layer_id = k if v == closest_point else None
+            closest_layer_id = k if v == closest_point else closest_layer_id
         assert closest_layer_id is not None, 'Closest point is found, but layer is not'
         closest_layer = ct.cast(closest_layer_id, ct.py_object).value
 
