@@ -681,7 +681,7 @@ class OpticalSystem:
             return self.default_background_component
 
     def refract(self, *, vector: Vector) -> Vector:
-        raise NotImplementedError(vector)
+        return vector
 
     def trace(self, vector: Vector):
         """Traces vector through the whole optical system"""
