@@ -1,3 +1,6 @@
+from math import pi
+from typing import List, Tuple
+
 import pytest
 from pytest import approx
 
@@ -58,37 +61,39 @@ def test__get_normal_angle(intersec, expected):
     assert opt_c._get_normal_angle(intersection=intersec) == expected
 
 
-def create_first_lense():
-    first_lense = OpticalComponent(name='first lense')
-    first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-    parabolic_l = Layer(name='parabolic', boundary=lambda y: y ** 2 / 10, side=Side.RIGHT)
-    first_lense.add_layer(layer=parabolic_l)
-    plane_l = Layer(name='plane', boundary=lambda y: 10, side=Side.LEFT)
-    first_lense.add_layer(layer=plane_l)
-    return first_lense
+@pytest.fixture
+def create_optical_system():
+    def create_first_lense():
+        first_lense = OpticalComponent(name='first lense')
+        first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
+        parabolic_l = Layer(name='parabolic', boundary=lambda y: y ** 2 / 10, side=Side.RIGHT)
+        first_lense.add_layer(layer=parabolic_l)
+        plane_l = Layer(name='plane', boundary=lambda y: 10, side=Side.LEFT)
+        first_lense.add_layer(layer=plane_l)
+        return first_lense
 
+    def create_second_lense():
+        second_lense = OpticalComponent(name='second lense')
+        second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
+        plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
+        second_lense.add_layer(layer=plane_sec)
+        parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
+        second_lense.add_layer(layer=parabolic_sec)
+        return second_lense
 
-def create_second_lense():
-    second_lense = OpticalComponent(name='second lense')
-    second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-    plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
-    second_lense.add_layer(layer=plane_sec)
-    parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
-    second_lense.add_layer(layer=parabolic_sec)
-    return second_lense
-
-
-opt_sys = OpticalSystem()
-first_lense = create_first_lense()
-second_lense = create_second_lense()
-opt_sys.add_component(component=first_lense)
-opt_sys.add_component(component=second_lense)
+    opt_sys = OpticalSystem()
+    first_lense = create_first_lense()
+    second_lense = create_second_lense()
+    opt_sys.add_component(component=first_lense)
+    opt_sys.add_component(component=second_lense)
+    return opt_sys
 
 v = [Vector(initial_point=Point(x=0, y=0, z=0.1), lum=1, w_length=555, theta=0.01, psi=0),  # inside first
-     Vector(initial_point=Point(x=0, y=0, z=25), lum=1, w_length=555, theta=0.01, psi=0),   # inside second
-     Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.01, psi=0),   # outside any at very left
-     Vector(initial_point=Point(x=0, y=0, z=1000), lum=1, w_length=555, theta=0.01, psi=0), # outside any at very right
-     Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.01+pi, psi=0), # at boundary of first, but directed outside
+     Vector(initial_point=Point(x=0, y=0, z=25), lum=1, w_length=555, theta=0.01, psi=0),  # inside second
+     Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.01, psi=0),  # outside any at very left
+     Vector(initial_point=Point(x=0, y=0, z=1000), lum=1, w_length=555, theta=0.01, psi=0),  # outside any at very right
+     Vector(initial_point=Point(x=0, y=0, z=0), lum=1, w_length=555, theta=0.01 + pi, psi=0),
+     # at boundary of first, but directed outside
      ]
 
 # a = opt_sys.get_containing_component(vector=v[2])
@@ -110,7 +115,8 @@ def test_get_containing_component(vector, expected_exception):
     with pytest.raises(expected_exception):
         opt_sys.get_containing_component(vector=vector) == expected_exception
 
-@pytest.mark.slow
+
+# @pytest.mark.slow
 @pytest.mark.parametrize('side, expected', [(Side.LEFT, Side.RIGHT),
                                             (Side.RIGHT, Side.LEFT),
                                             ])
@@ -118,10 +124,56 @@ def test_reversed_side(side, expected):
     assert reversed_side(side) == expected
 
 
-@pytest.mark.slow
+# @pytest.mark.slow
 @pytest.mark.parametrize('side, expected_exception', [('Wrong input', AssertionError),
                                                       (None, AssertionError),
                                                       (Side, AssertionError)])
 def test_reversed_side_exception(side, expected_exception):
     with pytest.raises(expected_exception):
         reversed_side(side)
+
+
+
+
+
+v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3, psi=0),
+     Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.5, psi=0),
+     Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.9, psi=0),
+     ]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('vector, expected_x_y_z', [
+                                                     (v[0], [(approx(0, TOLL), approx(0,TOLL), approx(-1,TOLL)),
+                                                             (approx(0, TOLL), approx(0.3123,TOLL), approx(0.00976,TOLL)),
+                                                             (approx(0, TOLL), approx(3.403,TOLL), approx(10,TOLL)),
+                                                             (approx(0, TOLL), approx(6.496,TOLL), approx(20,TOLL)),
+                                                             (approx(0, TOLL), approx(7.737,TOLL), approx(24.013,TOLL)),
+
+                                                            ]
+                                                     ),
+                                                     (v[1], [(approx(0, TOLL), approx(0,TOLL), approx(-1,TOLL)),
+                                                             (approx(0, TOLL), approx(0.564,TOLL), approx(0.032,TOLL)),
+                                                             (approx(0, TOLL), approx(6.009,TOLL), approx(10,TOLL))
+                                                            ]
+                                                     ),
+                                                     (v[2], [(approx(0, TOLL), approx(0,TOLL), approx(-1,TOLL)),
+                                                             (approx(0, TOLL), approx(1.571,TOLL), approx(0.247,TOLL)),
+                                                             (approx(0, TOLL), approx(6.364,TOLL), approx(4.05,TOLL))
+                                                            ]
+                                                     ),
+                                                    ]
+                         )
+def test_trace(vector: Vector, expected_x_y_z: List[Tuple[float]], create_optical_system):
+
+    def pick_out_coords(vectors: List[Vector]) -> List[Tuple[float]]:
+        def _fetch_point(vector: Vector) -> Point:
+            return vector.initial_point
+
+        ret = []
+        for vect in vectors:
+            point = _fetch_point(vect)
+            ret.append((point.x, point.y, point.z))
+        return ret
+    opt_sys = create_optical_system
+    assert pick_out_coords(opt_sys.trace(vector=vector)) == expected_x_y_z
