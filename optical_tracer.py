@@ -645,7 +645,7 @@ class DefaultOpticalComponent(OpticalComponent):
         found_intersections = {}
         # if not self.check_if_point_is_inside(point=vector.initial_point, components=components):
         #     raise VectorOutOfComponentException
-        for component in components:        # use optsystem components to check if points are inside
+        for component in components:  # use optsystem components to check if points are inside
             for layer in self.get_layers():
                 try:
                     intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
@@ -766,45 +766,47 @@ class OpticalSystem:
                 current_vector = current_component.propagate_vector(input_vector=current_vector, components=self._components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    print(*list(self._vectors.values())[0], sep='\n')
-                    break
+                    return list(self._vectors.values())[0]
                 raise NotImplementedError('Seems to be found nothing')
             current_vector = self.refract(vector=current_vector)
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
 
 
-
-
 def main():
-    first_lense = OpticalComponent(name='first lense')
-    first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-    parabolic_l = Layer(name='parabolic',
-                        boundary=lambda y: y ** 2 / 10,
-                        side=Side.RIGHT,
+    def create_opt_sys():
+        first_lense = OpticalComponent(name='first lense')
+        first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
+        parabolic_l = Layer(name='parabolic',
+                            boundary=lambda y: y ** 2 / 10,
+                            side=Side.RIGHT,
+                            )
+        first_lense.add_layer(layer=parabolic_l)
+        plane_l = Layer(name='plane',
+                        boundary=lambda y: 10,
+                        side=Side.LEFT,
                         )
-    first_lense.add_layer(layer=parabolic_l)
-    plane_l = Layer(name='plane',
-                    boundary=lambda y: 10,
-                    side=Side.LEFT,
-                    )
-    first_lense.add_layer(layer=plane_l)
+        first_lense.add_layer(layer=plane_l)
 
-    Air = Material(name="Air", transmittance=0, refractive_index=1)
+        Air = Material(name="Air", transmittance=0, refractive_index=1)
 
-    opt_sys = OpticalSystem(default_medium=Air)
-    opt_sys.add_component(component=first_lense)
+        opt_sys = OpticalSystem(default_medium=Air)
+        opt_sys.add_component(component=first_lense)
 
-    second_lense = OpticalComponent(name='second lense')
-    second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
+        second_lense = OpticalComponent(name='second lense')
+        second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
 
-    plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
-    second_lense.add_layer(layer=plane_sec)
+        plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
+        second_lense.add_layer(layer=plane_sec)
 
-    parabolic_sec = Layer(name='parabolic_sec', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
-    second_lense.add_layer(layer=parabolic_sec)
-    opt_sys.add_component(component=second_lense)
-    v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=1, psi=0)
-    opt_sys.trace(vector=v)
+        parabolic_sec = Layer(name='parabolic_sec', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
+        second_lense.add_layer(layer=parabolic_sec)
+        opt_sys.add_component(component=second_lense)
+        return opt_sys
+
+    opt_sys = create_opt_sys()
+    v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=.3, psi=0)
+    print(*opt_sys.trace(vector=v), sep='\n')
+    # v.get_line_equation(repr=1)
 
     # def_comp: DefaultOpticalComponent = opt_sys.default_background_component
     # a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)
