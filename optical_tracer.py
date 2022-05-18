@@ -265,6 +265,13 @@ class Vector:
             #
             return output_behaviour
 
+    @staticmethod
+    def calculate_angles(*, slope, deg=False):
+        theta = atan(1 / slope) % (2*pi)
+        theta = theta * 180/pi if deg else theta
+        print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
+
+
 
 @kwargs_only
 @dataclass
@@ -805,8 +812,10 @@ def main():
 
     opt_sys = create_opt_sys()
     v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=.3, psi=0)
+    v = Vector(initial_point=Point(x=0, y=10, z=0), lum=1, w_length=555, theta=5.81953769817878, psi=0)
     print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
+    # v.calculate_angles(slope=-2)
 
     # def_comp: DefaultOpticalComponent = opt_sys.default_background_component
     # a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)

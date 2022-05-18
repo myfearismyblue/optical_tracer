@@ -4,21 +4,23 @@ from typing import List, Tuple
 import pytest
 from pytest import approx
 
-from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point
+from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, NANOMETRE
 from optical_tracer import reversed_side, Side, Vector, VectorOutOfComponentException
 
 deg = 2 * pi / 360
 Air = Material(name="Air", transmittance=0, refractive_index=1)
 opt_c = OpticalComponent(name='first lense')
-TOLL = 10 ** -2
+w_length = 555 * NANOMETRE
+TOL = 0.001
+
 
 @pytest.mark.slow
 @pytest.mark.parametrize('vector_angle, normal_angle, refractive_index1, refractive_index2, expected',
-                         [(190 * deg, 145 * deg, 1, 1.5, approx(173.1255 * deg, TOLL)),
-                          (325 * deg, 10 * deg, 1, 1.5, approx(341.8744 * deg, TOLL)),
-                          (0 * deg, 0 * deg, 1, 1.5, approx(0 * deg, TOLL)),
-                          (190 * deg, 85 * deg, 1, 1, approx(190 * deg, TOLL)),
-                          (180 * deg, 0 * deg, 1, 1, approx(180 * deg, TOLL)),
+                         [(190 * deg, 145 * deg, 1, 1.5, approx(173.1255 * deg, abs=TOL)),
+                          (325 * deg, 10 * deg, 1, 1.5, approx(341.8744 * deg, abs=TOL)),
+                          (0 * deg, 0 * deg, 1, 1.5, approx(0 * deg, abs=TOL)),
+                          (190 * deg, 85 * deg, 1, 1, approx(190 * deg, abs=TOL)),
+                          (180 * deg, 0 * deg, 1, 1, approx(180 * deg, abs=TOL)),
                           ]
                          )
 def test__get_refract_angle(vector_angle, normal_angle, refractive_index1, refractive_index2, expected):
@@ -47,13 +49,13 @@ point = [Point(x=0, y=0.0001, z=0),
 
 @pytest.mark.slow
 @pytest.mark.parametrize('layer, point, expected',
-                         [(parabolic_l, point[0], approx(3.1413926, TOLL)),  # ~<pi - approaching zero from plus
-                          (parabolic_l, point[1], approx(0, TOLL)),  # parallel to z-axis
-                          (parabolic_l, point[2], approx(0.0001999, TOLL)),  # approaching zero from minus
-                          (parabolic_l, point[3], approx(1.575796285141478, TOLL)),  # almost perpendicular
-                          (parabolic_l, point[4], approx(1.5657963684483152, TOLL)),
+                         [(parabolic_l, point[0], approx(3.1413926, abs=TOL)),  # ~<pi - approaching zero from plus
+                          (parabolic_l, point[1], approx(0, abs=TOL)),  # parallel to z-axis
+                          (parabolic_l, point[2], approx(0.0001999, abs=TOL)),  # approaching zero from minus
+                          (parabolic_l, point[3], approx(1.575796285141478, abs=TOL)),  # almost perpendicular
+                          (parabolic_l, point[4], approx(1.5657963684483152, abs=TOL)),
                           # same approaching from another side
-                          (plane_l, point[5], approx(0, TOLL)),  # check with constant (plane) bound
+                          (plane_l, point[5], approx(0, abs=TOL)),  # check with constant (plane) bound
                           ])
 def test__get_normal_angle(layer, point, expected):
     assert layer._get_normal_angle(point=point) == expected
@@ -144,22 +146,22 @@ v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3,
 
 @pytest.mark.slow
 @pytest.mark.parametrize('vector, expected_x_y_z', [
-    (v[0], [(approx(0, TOLL), approx(0, TOLL), approx(-1, TOLL)),
-            (approx(0, TOLL), approx(0.3123, TOLL), approx(0.00976, TOLL)),
-            (approx(0, TOLL), approx(3.403, TOLL), approx(10, TOLL)),
-            (approx(0, TOLL), approx(6.496, TOLL), approx(20, TOLL)),
-            (approx(0, TOLL), approx(7.737, TOLL), approx(24.013, TOLL)),
+    (v[0], [(approx(0, abs=TOL), approx(0, abs=TOL), approx(-1, abs=TOL)),
+            (approx(0, abs=TOL), approx(0.3123, abs=TOL), approx(0.00976, abs=TOL)),
+            (approx(0, abs=TOL), approx(3.403, abs=TOL), approx(10, abs=TOL)),
+            (approx(0, abs=TOL), approx(6.496, abs=TOL), approx(20, abs=TOL)),
+            (approx(0, abs=TOL), approx(7.737, abs=TOL), approx(24.013, abs=TOL)),
 
             ]
      ),
-    (v[1], [(approx(0, TOLL), approx(0, TOLL), approx(-1, TOLL)),
-            (approx(0, TOLL), approx(0.564, TOLL), approx(0.032, TOLL)),
-            (approx(0, TOLL), approx(6.009, TOLL), approx(10, TOLL))
+    (v[1], [(approx(0, abs=TOL), approx(0, abs=TOL), approx(-1, abs=TOL)),
+            (approx(0, abs=TOL), approx(0.564, abs=TOL), approx(0.032, abs=TOL)),
+            (approx(0, abs=TOL), approx(6.009, abs=TOL), approx(10, abs=TOL))
             ]
      ),
-    (v[2], [(approx(0, TOLL), approx(0, TOLL), approx(-1, TOLL)),
-            (approx(0, TOLL), approx(1.571, TOLL), approx(0.247, TOLL)),
-            (approx(0, TOLL), approx(6.364, TOLL), approx(4.05, TOLL))
+    (v[2], [(approx(0, abs=TOL), approx(0, abs=TOL), approx(-1, abs=TOL)),
+            (approx(0, abs=TOL), approx(1.571, abs=TOL), approx(0.247, abs=TOL)),
+            (approx(0, abs=TOL), approx(6.364, abs=TOL), approx(4.05, abs=TOL))
             ]
      ),
 ]
