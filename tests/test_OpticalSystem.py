@@ -141,10 +141,11 @@ def test_reversed_side_exception(side, expected_exception):
 v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3, psi=0),
      Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.5, psi=0),
      Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.9, psi=0),
+     Vector(initial_point=Point(x=0, y=10, z=0), lum=1, w_length=555, theta=5.81953769817878, psi=0),
      ]
 
 
-@pytest.mark.slow
+@pytest.mark.blow
 @pytest.mark.parametrize('vector, expected_x_y_z', [
     (v[0], [(approx(0, abs=TOL), approx(0, abs=TOL), approx(-1, abs=TOL)),
             (approx(0, abs=TOL), approx(0.3123, abs=TOL), approx(0.00976, abs=TOL)),
@@ -164,6 +165,13 @@ v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3,
             (approx(0, abs=TOL), approx(6.364, abs=TOL), approx(4.05, abs=TOL))
             ]
      ),
+    (v[3], [(approx(0, abs=TOL), approx(10, abs=TOL), approx(0, abs=TOL)),
+            (approx(0, abs=TOL), approx(7.321, abs=TOL), approx(5.359, abs=TOL)),
+            (approx(0, abs=TOL), approx(5, abs=TOL), approx(10, abs=TOL)),
+            (approx(0, abs=TOL), approx(0, abs=TOL), approx(20, abs=TOL)),
+            (approx(0, abs=TOL), approx(-4.142, abs=TOL), approx(28.284, abs=TOL)),
+            ]
+     ),
 ]
                          )
 def test_trace(vector: Vector, expected_x_y_z: List[Tuple[float]], create_optical_system):
@@ -177,4 +185,5 @@ def test_trace(vector: Vector, expected_x_y_z: List[Tuple[float]], create_optica
             ret.append((point.x, point.y, point.z))
         return ret
     opt_sys = create_optical_system
-    assert pick_out_coords(opt_sys.trace(vector=vector)) == expected_x_y_z
+    picked = pick_out_coords(opt_sys.trace(vector=vector))
+    assert picked == expected_x_y_z
