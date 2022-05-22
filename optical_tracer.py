@@ -487,6 +487,9 @@ class Layer:
         return normal_angle
 
     def reverted_layer(self):
+        """
+        Returns object of Layer cls which has an opposite side to the current layer and sets the name to the new layer
+        """
         opposite_side = reversed_side(self.side)
         boundary = self.boundary
         opposite_name = f'opposite {self.name}'
