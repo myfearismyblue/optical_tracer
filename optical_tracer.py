@@ -376,6 +376,8 @@ class Layer:
         """
         Checks if input point and material (self.side) are at a same side of boundary
         """
+        if point is None:
+            return False
         point_right = point.z >= self.boundary(point.y)
         point_left = point.z <= self.boundary(point.y)
         if (point_right and self.side == Side.RIGHT) or (point_left and self.side == Side.LEFT):
@@ -556,8 +558,6 @@ class OpticalComponent:
 
     def check_if_point_is_inside(self, *, point: Point) -> bool:
         """Returns true if the given point is in the boundaries (including) of all layers of the component"""
-        if point is None:
-            return False
         return all(layer.contains_point(point=point) for layer in self._layers)
 
     def check_if_vector_is_inside(self, *, vector: Vector) -> bool:
