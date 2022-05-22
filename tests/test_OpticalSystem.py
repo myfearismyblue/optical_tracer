@@ -42,12 +42,14 @@ def create_two_lenses_opt_sys():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize('vector_angle, normal_angle, refractive_index1, refractive_index2, expected',
+@pytest.mark.parametrize('vector_angle, normal_angle, prev_index, next_index, expected',
                          [(190 * deg, 145 * deg, 1, 1.5, approx(173.1255 * deg, abs=TOL)),
                           (325 * deg, 10 * deg, 1, 1.5, approx(341.8744 * deg, abs=TOL)),
                           (0 * deg, 0 * deg, 1, 1.5, approx(0 * deg, abs=TOL)),
                           (190 * deg, 85 * deg, 1, 1, approx(190 * deg, abs=TOL)),
                           (180 * deg, 0 * deg, 1, 1, approx(180 * deg, abs=TOL)),
+                          (0.3, 3.0792028712392954, 1, 1.5, approx(0.176, abs=TOL)),
+                          (0 * deg, 179.99999999 * deg, 1, 1, approx(0 * deg, abs=TOL)),
                           ]
                          )
 def test__get_refract_angle(vector_angle, normal_angle, prev_index, next_index, expected, create_two_lenses_opt_sys):
