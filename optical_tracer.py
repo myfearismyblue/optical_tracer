@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import ctypes as ct
+from copy import copy
 from dataclasses import dataclass, field
 from functools import wraps
 from enum import auto, Enum
@@ -20,6 +21,7 @@ METRE = 1
 CENTIMETRE = METRE * 10 ** -2
 MILLIMETRE = METRE * 10 ** -3
 NANOMETRE = METRE * 10 ** -9
+NO_REFRACTION = False
 
 
 def kwargs_only(cls):
@@ -450,7 +452,7 @@ class Layer:
 
         def _is_directed_to_boundary():
             # check if vector is directed to the intersection
-            normal_angle = self._get_normal_angle(point=intersection_point)
+            normal_angle = self.get_normal_angle(point=intersection_point)
             vector_directed_left = (pi / 2 + normal_angle) % 2*pi <= vector.theta <= (3 * pi / 2 + normal_angle) % 2*pi
             intersection_is_righter = surface(current_y) > vector.initial_point.z
             if intersection_is_righter == vector_directed_left:         # Ture == True or False == False
@@ -475,7 +477,7 @@ class Layer:
             approved_ys.append(current_y)
         return approved_ys
 
-    def _get_normal_angle(self, *, point: Point) -> float:
+    def get_normal_angle(self, *, point: Point) -> float:
         """
         Returns angle in radians of normal line to the surface at the point of intersection.
         Uses scipy.misc.derivative
@@ -597,7 +599,7 @@ class OpticalComponent:
 
         return closest_layer, closest_point
 
-    def propagate_vector(self, *, input_vector: Vector, components=None) -> Vector:
+    def propagate_vector(self, *, input_vector: Vector, components=None) -> Tuple[Vector, Layer]:
         """
         Creates a new instance if vector due propagation of input vector in a component. Traces this vector
         to a boundary of the component, but do not refract it
@@ -613,31 +615,7 @@ class OpticalComponent:
         output_psi = input_vector.psi
         output_vector = Vector(initial_point=intersection_point, lum=attenuated_lum, w_length=input_vector.w_length,
                                theta=output_theta, psi=output_psi)
-        return output_vector
-
-    @staticmethod
-    def _get_refract_angle(*, vector_angle: float, normal_angle: float,
-                           refractive_index1: float, refractive_index2: float) -> float:
-        """
-        Implements Snell's law.
-        :param vector_angle: vector's global angle to optical axis [0, 2*pi)
-        :param normal_angle: angle of  normal at the point of intersection to optical axis [0, pi)
-        :param refractive_index1: index of medium vector is leaving
-        :param refractive_index2: index of medium vector is arriving to
-        :return: vector's global angle after transition to the new medium (to the z-axis)
-        """
-        assert 0 <= vector_angle < 2 * pi  # only clear data in the class
-        assert 0 <= normal_angle < pi
-        assert refractive_index1 and refractive_index2
-
-        alpha = vector_angle - normal_angle  # local angle of incidence
-        assert alpha != pi / 2 and alpha != 3 * pi / 2  # assuming vector isn't tangental to boundary
-        beta = asin(refractive_index1 / refractive_index2 * sin(alpha)) % (2 * pi)
-        # if vector and normal are contrdirected asin(sin(x)) doesn't give x, so make some addition
-        beta = pi - beta if pi / 2 < alpha < 3 * pi / 2 else beta
-
-        ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
-        return ret
+        return output_vector, intersection_layer
 
 
 class DefaultOpticalComponent(OpticalComponent):
@@ -678,7 +656,7 @@ class DefaultOpticalComponent(OpticalComponent):
 
         return closest_layer, closest_point
 
-    def propagate_vector(self, *, input_vector: Vector, components: List[OpticalComponent]) -> Vector:
+    def propagate_vector(self, *, input_vector: Vector, components: List[OpticalComponent]) -> Tuple[Vector, Layer]:
         """Stub"""
         intersection = intersection_layer, intersection_point = \
             self._get_component_intersection(vector=input_vector, components=components)
@@ -691,7 +669,7 @@ class DefaultOpticalComponent(OpticalComponent):
         output_psi = input_vector.psi
         output_vector = Vector(initial_point=intersection_point, lum=attenuated_lum, w_length=input_vector.w_length,
                                theta=output_theta, psi=output_psi)
-        return output_vector
+        return output_vector, intersection_layer
 
 
 class OpticalSystem:
@@ -746,6 +724,30 @@ class OpticalSystem:
                 return component
         raise VectorOutOfComponentException('Vector is out of any component')
 
+    @staticmethod
+    def _get_refract_angle(*, vector_angle: float, normal_angle: float,
+                           prev_index: float, next_index: float) -> float:
+        """
+        Implements Snell's law.
+        :param vector_angle: vector's global angle to optical axis [0, 2*pi)
+        :param normal_angle: angle of  normal at the point of intersection to optical axis [0, pi)
+        :param prev_index: index of medium vector is leaving
+        :param next_index: index of medium vector is arriving to
+        :return: vector's global angle after transition to the new medium (to the z-axis)
+        """
+        assert 0 <= vector_angle < 2 * pi  # only clear data in the class
+        assert 0 <= normal_angle < pi
+        assert prev_index and next_index
+
+        alpha = vector_angle - normal_angle  # local angle of incidence
+        assert alpha != pi / 2 and alpha != 3 * pi / 2  # assuming vector isn't tangental to boundary
+        beta = asin(prev_index / next_index * sin(alpha)) % (2 * pi)
+        # if vector and normal are contrdirected asin(sin(x)) doesn't give x, so make some addition
+        beta = pi - beta if pi / 2 < abs(alpha) < 3 * pi / 2 else beta
+
+        ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
+        return ret
+
     def get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
         """Returns thc component of system which contains given vector or returns default background"""
         try:
@@ -753,8 +755,15 @@ class OpticalSystem:
         except VectorOutOfComponentException:
             return self.default_background_component
 
-    def refract(self, *, vector: Vector) -> Vector:
-        return vector
+    def refract(self, *, vector: Vector, layer: Layer, prev_index: float, next_index: float) -> Vector:
+        if DEBUG and NO_REFRACTION:
+            return vector
+
+        normal_angle = layer.get_normal_angle(point=vector.initial_point)
+        refracted_vector = copy(vector)
+        refracted_vector.theta = self._get_refract_angle(vector_angle=vector.theta, normal_angle=normal_angle,
+                                                         prev_index=prev_index, next_index=next_index)
+        return refracted_vector
 
     def trace(self, vector: Vector):
         """Traces vector through the whole optical system"""
@@ -770,15 +779,21 @@ class OpticalSystem:
         # end of iteration
         current_vector = initial_vector = vector
         self.add_initial_vector(initial_vector=initial_vector)
+        current_component = self.get_containing_component_or_default(vector=current_vector)
         while True:
             current_component = self.get_containing_component_or_default(vector=current_vector)
             try:  # FIXME:  make this outer func.
-                current_vector = current_component.propagate_vector(input_vector=current_vector, components=self._components)
+                current_vector, intersection_layer = current_component.propagate_vector(input_vector=current_vector,
+                                                                                        components=self._components)
             except NoIntersectionWarning:
                 if DEBUG:
                     return list(self._vectors.values())[0]
                 raise NotImplementedError('Seems to be found nothing')
-            current_vector = self.refract(vector=current_vector)
+            prev_index = current_component.material.refractive_index
+            current_component = self.get_containing_component_or_default(vector=current_vector)
+            next_index = current_component.material.refractive_index
+            current_vector = self.refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
+                                          next_index=next_index)
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
 
 
