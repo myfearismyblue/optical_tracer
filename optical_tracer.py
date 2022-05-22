@@ -252,10 +252,10 @@ class Vector:
     def get_line_equation(self, repr=False) -> Callable:  # FIXME: rename repr here
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
         try:
-            A = 1 / tan(self.theta)
-            B = self.initial_point.z - self.initial_point.y / tan(self.theta)
-            print(f'{A}*y + {B}') if repr else None
-            return lambda y: A * y + B
+            slope = 1 / tan(self.theta)
+            intercept = self.initial_point.z - self.initial_point.y / tan(self.theta)
+            print(f'{slope}*y + {intercept}') if repr else None
+            return lambda y: slope * y + intercept
         except ZeroDivisionError:
             # FIXME: fix whis stab
             def output_behaviour(y):
@@ -374,7 +374,7 @@ class Layer:
 
     def contains_point(self, *, point: Point) -> bool:
         """
-        Checks if input point and material (self.side) are at a same side of boundary
+        Checks if input point and material (self.side) are at a same side of boundary (including)
         """
         if point is None:
             return False
@@ -427,7 +427,7 @@ class Layer:
         def _is_converges():
             # check if z-coordinate at the line and at the surface convergate
             difference = abs(surface(current_y) - line(current_y))
-            if difference > vector.w_length * QUARTER_PART_IN_MM:  # quarter part of wave length
+            if difference > vector.w_length * NANOMETRE / 4:  # quarter part of wave length
                 if DEBUG:
                     warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
                 # FIXME: check measures meters or milimeters?
@@ -781,7 +781,6 @@ class OpticalSystem:
         self.add_initial_vector(initial_vector=initial_vector)
         current_component = self.get_containing_component_or_default(vector=current_vector)
         while True:
-            current_component = self.get_containing_component_or_default(vector=current_vector)
             try:  # FIXME:  make this outer func.
                 current_vector, intersection_layer = current_component.propagate_vector(input_vector=current_vector,
                                                                                         components=self._components)
@@ -830,7 +829,7 @@ def main():
 
     opt_sys = create_opt_sys()
     v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=.3, psi=0)
-    v = Vector(initial_point=Point(x=0, y=10, z=0), lum=1, w_length=555, theta=5.81953769817878, psi=0)
+    # v = Vector(initial_point=Point(x=0, y=10, z=0), lum=1, w_length=555, theta=5.81953769817878, psi=0)
     print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
     # v.calculate_angles(slope=-2)
