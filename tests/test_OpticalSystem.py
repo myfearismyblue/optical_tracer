@@ -1,5 +1,5 @@
 from math import pi
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import pytest
 from pytest import approx
@@ -10,35 +10,6 @@ from optical_tracer import reversed_side, Side, Vector, VectorOutOfComponentExce
 deg = 2 * pi / 360
 Air = Material(name="Air", transmittance=0, refractive_index=1)
 TOL = 0.001
-
-
-@pytest.fixture
-def create_two_lenses_opt_sys():
-    def create_first_lense():
-        first_lense = OpticalComponent(name='first lense')
-        first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-        parabolic_l = Layer(name='parabolic', boundary=lambda y: y ** 2 / 10, side=Side.RIGHT)
-        first_lense.add_layer(layer=parabolic_l)
-        plane_l = Layer(name='plane', boundary=lambda y: 10, side=Side.LEFT)
-        first_lense.add_layer(layer=plane_l)
-        return first_lense
-
-    def create_second_lense():
-        second_lense = OpticalComponent(name='second lense')
-        second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-        plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
-        second_lense.add_layer(layer=plane_sec)
-        parabolic_sec = Layer(name='parabolic', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
-        second_lense.add_layer(layer=parabolic_sec)
-        return second_lense
-
-    opt_sys = OpticalSystem()
-    first_lense = create_first_lense()
-    second_lense = create_second_lense()
-    opt_sys.add_component(component=first_lense)
-    opt_sys.add_component(component=second_lense)
-    return opt_sys
-
 
 
 @pytest.mark.slow
@@ -174,6 +145,7 @@ v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3,
 ]
                          )
 def test_trace(vector: Vector, expected_x_y_z: List[Tuple[float]], create_two_lenses_opt_sys):
+    """NO_REFRACTION = True here"""
     def pick_out_coords(vectors: List[Vector]) -> List[Tuple[float]]:
         def _fetch_point(vector: Vector) -> Point:
             return vector.initial_point
@@ -186,3 +158,42 @@ def test_trace(vector: Vector, expected_x_y_z: List[Tuple[float]], create_two_le
     opt_sys = create_two_lenses_opt_sys
     picked = pick_out_coords(opt_sys.trace(vector=vector))
     assert picked == expected_x_y_z
+
+
+v = [Vector(initial_point=Point(x=0, y=0, z=-2), lum=1, w_length=555, theta=0.1, psi=0),
+     Vector(initial_point=Point(x=0, y=0, z=40), lum=1, w_length=555, theta=pi+pi/4, psi=0),
+     ]
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize('vector, expected',
+                         [              #____x___________________y______________________z________________theta______________________psi__________
+                             (v[0], [(approx(0, abs=TOL), approx(0, abs=TOL), approx(-2, abs=TOL), approx(.1, abs=TOL), approx(0, abs=TOL)),
+                                     (approx(0, abs=TOL), approx(0.2007, abs=TOL), approx(0, abs=TOL), approx(.090883, abs=TOL), approx(0, abs=TOL)),
+                                     (approx(0, abs=TOL), approx(1.112, abs=TOL), approx(10, abs=TOL), approx(.083291, abs=TOL), approx(0, abs=TOL)),
+                                     (approx(0, abs=TOL), approx(1.9468, abs=TOL), approx(20, abs=TOL), approx(.076871, abs=TOL), approx(0, abs=TOL)),
+                                     (approx(0, abs=TOL), approx(2.717, abs=TOL), approx(30, abs=TOL), approx(.07137, abs=TOL)), approx(0, abs=TOL),
+
+                                     ]
+                              )
+                         ]
+                         )
+def test_trace(vector: Vector, expected: List[Tuple[float]], create_parallel_slices_opt_sys):
+    def pick_out_values(vectors: List[Vector]) -> List[Tuple[float]]:
+        """Returns a list of tuples like (*coordinate, *angles) of initial points of each vector"""
+        def _fetch_point(vector: Vector) -> Point:
+            return vector.initial_point
+
+        def _fetch_angles(vector: Vector) -> Tuple[Union[int, float], Union[int, float]]:
+            return vector.theta, vector.psi
+
+        ret = []
+        for vect in vectors:
+            point = _fetch_point(vect)
+            angles = _fetch_angles(vect)
+            ret.append((point.x, point.y, point.z, *angles))
+        return ret
+
+    opt_sys = create_parallel_slices_opt_sys
+    picked = pick_out_values(opt_sys.trace(vector=vector))
+    assert picked == expected
