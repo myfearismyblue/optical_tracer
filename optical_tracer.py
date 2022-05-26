@@ -389,6 +389,14 @@ class Layer:
             return True
         return False
 
+    def directed_inside(self, *, boundary_vector: Vector) -> bool:
+        """Returns True if vector, located on boundary, directed inside the material (layer.side)"""
+        # FIXME: Test this
+        tangential_angle = self.get_tangential_angle(point=boundary_vector.initial_point)
+        vector_directed_left = tangential_angle < boundary_vector.theta < tangential_angle + pi
+        layer_is_left = self.side == Side.LEFT
+        return vector_directed_left == layer_is_left
+
     def get_layer_intersection(self, *, vector: Vector) -> Point:
         """
         Returns valid closest intersection of the vector with boundary layer.boundary
@@ -494,6 +502,17 @@ class Layer:
         normal_angle: float = ((3 / 2 * pi - atan(-1 / derivative(surf_equation, y, dx=TOLL))) % pi)
         assert 0 <= normal_angle < pi
         return normal_angle
+
+    def get_tangential_angle(self, *, point: Point) -> float:
+        """Returns angle in radians of tangential line to the surface at the point of intersection."""
+        # FIXME: test this
+        normal_angle = self.get_normal_angle(point=point)
+        if 0 <= normal_angle < pi/2:
+            tangential_angle = normal_angle + pi/2
+        else:   # pi/2 <= normal_angle < pi
+            tangential_angle = normal_angle - pi/2
+        assert 0 <= tangential_angle < pi
+        return tangential_angle
 
     def reverted_layer(self):
         """
