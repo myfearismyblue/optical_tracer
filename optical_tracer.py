@@ -584,14 +584,41 @@ class OpticalComponent:
         """Returns true if the given point is in the boundaries (including) of all layers of the component"""
         return all(layer.contains_point(point=point) for layer in self._layers)
 
-    def check_if_vector_is_inside(self, *, vector: Vector) -> bool:
-        """Returns true if given vector"""
+    def find_boundary_layer(self, *, vector: Vector) -> Layer:
+        """Returns a layer on boundary of which vector's initial point is located, or raises exception"""
+        for layer in self._layers:
+            layer_x = vector_x = vector.initial_point.x
+            layer_y = vector_y = vector.initial_point.y
+            layer_z = layer.boundary(layer_y)  # FIXME: x here isn't being supported yet
+            vector_point_difference = vector.initial_point.get_distance(Point(x=layer_x, y=layer_y, z=layer_z))
+            vector_is_on_current_bound = vector_point_difference <= vector.w_length * NANOMETRE / 4
+            if vector_is_on_current_bound:
+                return layer
+        raise VectorNotOnBoundaryException
+
+    def check_if_vector_on_boundary(self, *, vector: Vector) -> bool:
+        """Check if the given vector is located at the boundary"""
         try:
-            res = self._get_component_intersection(vector=vector)
-            assert res, 'Something wrong with _get_component_intersection'
-            return bool(res)
-        except (VectorOutOfComponentException, NoIntersectionWarning):
+            _ = self.find_boundary_layer(vector=vector)
+            return True
+        except VectorNotOnBoundaryException:
             return False
+
+    def check_if_directed_inside(self, *, vector: Vector) -> bool:
+        """Returns true if given vector, which is located on boundary, directed inside the component"""
+        bound_layer = self.find_boundary_layer(vector=vector)
+        return bound_layer.directed_inside(boundary_vector=vector)
+
+    def check_if_vector_is_inside(self, *, vector: Vector) -> bool:
+        """
+        Returns true if given vector's initial point is inside all layers of the component or
+        true if the given point is at the boundary and vector directed inside the component
+        """
+        if self.check_if_vector_on_boundary(vector=vector):
+            # check direction
+            return self.check_if_directed_inside(vector=vector)
+        else:
+            return self.check_if_point_is_inside(point=vector.initial_point)
 
     def _get_component_intersection(self, *, vector: Vector) -> Tuple[Layer, Point]:
         """
@@ -822,47 +849,60 @@ class OpticalSystem:
 
 def main():
     def create_opt_sys():
-        first_lense = OpticalComponent(name='first lense')
-        first_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
-        parabolic_l = Layer(name='parabolic',
-                            boundary=lambda y: y ** 2 / 10,
-                            side=Side.RIGHT,
-                            )
-        first_lense.add_layer(layer=parabolic_l)
-        plane_l = Layer(name='plane',
-                        boundary=lambda y: 10,
-                        side=Side.LEFT,
-                        )
-        first_lense.add_layer(layer=plane_l)
+        """Creates an Optical System which is composed of three parallel layers and five optical media"""
 
-        Air = Material(name="Air", transmittance=0, refractive_index=1)
+        def create_first_medium():
+            first_left_bound = Layer(boundary=lambda y: 0, side=Side.RIGHT, name='First-left bound')
+            first_right_bound = Layer(boundary=lambda y: 10, side=Side.LEFT, name='First-right bound')
+            first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
+            first_medium = OpticalComponent(name='First')
+            first_medium.add_layer(layer=first_left_bound)
+            first_medium.add_layer(layer=first_right_bound)
+            first_medium.material = first_material
+            return first_medium
 
-        opt_sys = OpticalSystem(default_medium=Air)
-        opt_sys.add_component(component=first_lense)
+        def create_second_medium():
+            second_left_bound = Layer(boundary=lambda y: 10, side=Side.RIGHT, name='Second-left bound')
+            second_right_bound = Layer(boundary=lambda y: 20, side=Side.LEFT, name='Second-right bound')
+            second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
+            second_medium = OpticalComponent(name='Second')
+            second_medium.add_layer(layer=second_left_bound)
+            second_medium.add_layer(layer=second_right_bound)
+            second_medium.material = second_material
+            return second_medium
 
-        second_lense = OpticalComponent(name='second lense')
-        second_lense.material = Material(name='Glass', transmittance=0.9, refractive_index=1.5)
+        def create_third_medium():
+            third_left_bound = Layer(boundary=lambda y: 20, side=Side.RIGHT, name='Third-left bound')
+            third_right_bound = Layer(boundary=lambda y: 30, side=Side.LEFT, name='Third-right bound')
+            third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
+            third_medium = OpticalComponent(name='Third')
+            third_medium.add_layer(layer=third_left_bound)
+            third_medium.add_layer(layer=third_right_bound)
+            third_medium.material = third_material
+            return third_medium
 
-        plane_sec = Layer(name='plane_sec', boundary=lambda y: 20, side=Side.RIGHT)
-        second_lense.add_layer(layer=plane_sec)
+        def create_fourth_medium():
+            fourth_left_bound = Layer(boundary=lambda y: 30, side=Side.RIGHT, name='Fourth-left bound')
+            fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
+            fourth_medium = OpticalComponent(name='Fourth')
+            fourth_medium.add_layer(layer=fourth_left_bound)
+            fourth_medium.material = fourth_material
+            return fourth_medium
 
-        parabolic_sec = Layer(name='parabolic_sec', boundary=lambda y: 30 - y ** 2 / 10, side=Side.LEFT)
-        second_lense.add_layer(layer=parabolic_sec)
-        opt_sys.add_component(component=second_lense)
+        opt_sys = OpticalSystem()
+        first_medium, second_medium, third_medium, fourth_medium = (medium for medium in (create_first_medium(),
+                                                                                          create_second_medium(),
+                                                                                          create_third_medium(),
+                                                                                          create_fourth_medium()
+                                                                                          )
+                                                                    )
+        [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
         return opt_sys
 
     opt_sys = create_opt_sys()
-    v = Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=.3, psi=0)
-    # v = Vector(initial_point=Point(x=0, y=10, z=0), lum=1, w_length=555, theta=5.81953769817878, psi=0)
+    v = Vector(initial_point=Point(x=0, y=0, z=-2), lum=1, w_length=555, theta=0.1, psi=0)
     print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
-    # v.calculate_angles(slope=-2)
-
-    # def_comp: DefaultOpticalComponent = opt_sys.default_background_component
-    # a = def_comp._get_component_intersection(vector=v, components=opt_sys._components)
-    #
-    # print(a)
-
 
 if __name__ == '__main__':
     main()
