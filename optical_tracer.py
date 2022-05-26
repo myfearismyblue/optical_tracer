@@ -468,7 +468,7 @@ class Layer:
         def _is_directed_to_boundary():
             # check if vector is directed to the intersection
             normal_angle = self.get_normal_angle(point=intersection_point)
-            vector_directed_left = (pi / 2 + normal_angle) % 2*pi <= vector.theta <= (3 * pi / 2 + normal_angle) % 2*pi
+            vector_directed_left = (pi / 2 + normal_angle) % (2*pi) <= vector.theta <= (3 * pi / 2 + normal_angle) % (2*pi)
             intersection_is_righter = surface(current_y) > vector.initial_point.z
             if intersection_is_righter == vector_directed_left:         # Ture == True or False == False
                 if DEBUG:
