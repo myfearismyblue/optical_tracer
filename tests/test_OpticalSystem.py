@@ -172,7 +172,7 @@ v = [Vector(initial_point=Point(x=0, y=0, z=-2), lum=1, w_length=555, theta=0.1,
                                      (approx(0, abs=TOL), approx(0.2007, abs=TOL), approx(0, abs=TOL), approx(.090883, abs=TOL), approx(0, abs=TOL)),
                                      (approx(0, abs=TOL), approx(1.112, abs=TOL), approx(10, abs=TOL), approx(.083291, abs=TOL), approx(0, abs=TOL)),
                                      (approx(0, abs=TOL), approx(1.9468, abs=TOL), approx(20, abs=TOL), approx(.076871, abs=TOL), approx(0, abs=TOL)),
-                                     (approx(0, abs=TOL), approx(2.717, abs=TOL), approx(30, abs=TOL), approx(.07137, abs=TOL)), approx(0, abs=TOL),
+                                     (approx(0, abs=TOL), approx(2.717, abs=TOL), approx(30, abs=TOL), approx(.07137, abs=TOL), approx(0, abs=TOL)),
 
                                      ]
                               )
@@ -196,4 +196,7 @@ def test_trace(vector: Vector, expected: List[Tuple[float]], create_parallel_sli
 
     opt_sys = create_parallel_slices_opt_sys
     picked = pick_out_values(opt_sys.trace(vector=vector))
+    for p, e in zip(picked, expected):
+        if p != e:
+            raise Exception(f'{p} = {e} False')
     assert picked == expected
