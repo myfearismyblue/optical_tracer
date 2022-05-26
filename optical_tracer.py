@@ -39,6 +39,11 @@ class VectorOutOfComponentException(Exception):
     pass
 
 
+class VectorNotOnBoundaryException(Exception):
+    """Raises then vector is supposed to be on the boundary of layer, but it is not"""
+    pass
+
+
 class NoIntersectionWarning(Warning):
     """Raises then vector doesn't intersect any surface"""
     pass
