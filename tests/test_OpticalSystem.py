@@ -5,11 +5,41 @@ import pytest
 from pytest import approx
 
 from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, NANOMETRE
-from optical_tracer import reversed_side, Side, Vector, VectorOutOfComponentException
+from optical_tracer import reversed_side, Side, Vector
+from optical_tracer import ObjectKeyWordsMismatchException, VectorOutOfComponentException
 
 deg = 2 * pi / 360
 Air = Material(name="Air", transmittance=0, refractive_index=1)
 TOL = 0.001
+
+@pytest.fixture
+def create_point():
+    pt =Point(x=0, y=0, z=0)
+    return pt
+
+@pytest.mark.slow
+@pytest.mark.parametrize('coords, expected', [({'y': "999999", 'x': -1, 'z': 0}, (-1, 999999, 0))])
+def test_set_coords(coords, expected, create_point):
+    pt = create_point
+    pt.set_coords(**coords)
+    assert (pt.x, pt.y, pt.z) == expected
+
+@pytest.mark.slow
+@pytest.mark.parametrize('coords, expected_exception', [({'y': "999999", 'z': 0}, ObjectKeyWordsMismatchException),
+                                                        ({}, ObjectKeyWordsMismatchException),
+                                                        ({'y': "999999", 'z': 0, 'x': 1, 'q': 'buz'}, ObjectKeyWordsMismatchException),
+                                                        ({'y': "-inf", 'z': 0, 'x': 1}, ValueError),
+                                                        ({'y': [1], 'z': 0, 'x': 1}, TypeError),
+                                                        # ({'y': "0", 'z': 0, 'x': 1, 'x': 2, 'y':3, 'z':4}, ObjectKeyWordsMismatchException),
+                                                        ({'y': "D", 'z': 0, 'x': 1,}, ValueError),
+
+                                                        ]
+                         )
+def test_set_coords_exception(coords, expected_exception, create_point):
+    pt = create_point
+    with pytest.raises(expected_exception):
+        pt.set_coords(**coords)
+
 
 
 @pytest.mark.slow
