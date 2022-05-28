@@ -14,6 +14,7 @@ import numpy as np
 
 DEBUG = 1
 OPT_SYS_DIMENSIONS = (-100, 100)
+OPTICAL_RANGE = (380, 780)  # in nanometers
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 TOLL = 10 ** -3  # to use in scipy functions
 PERCENT = 0.01
@@ -73,7 +74,6 @@ class ICheckable(ABC):
     def _validate_inputs(self, *args, **kwargs):
         pass
 
-    @abstractmethod
     def _throw_inputs(self, *args, **kwargs):
         """Throwing only for attrs starts with _underscore"""
         [setattr(self, attr, kwargs[attr[1:]]) if attr.startswith('_') else setattr(self, attr, kwargs[attr])
@@ -127,11 +127,33 @@ class PointCheckStrategy(BaseCheckStrategy):
 class VectorCheckStrategy(BaseCheckStrategy):
     """The way in which any Vector object's inputs should be checked"""  # FIXME: Add concrete conditions
 
-    def check(self, *args, **kwargs):
-        raise NotImplementedError
+    def validate(self, *args, **kwargs):
+        assert all((f'_{attr}' in Vector.__slots__ for attr in ['initial_point', 'lum', 'w_length', 'theta', 'psi']))
+
+        def validate_initial_point():
+            if not isinstance(kwargs.get('initial_point'), Point):
+                raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
+
+        def validate_luminance():
+            kwargs['lum'] = float(kwargs.get('lum'))
+
+        def validate_w_length():
+            if not OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]:
+                warn('Wave length is out of optical range')
+            kwargs['w_length'] = float(kwargs.get('w_length'))
+
+        def validate_angles():
+            kwargs['theta'] = float(kwargs.get('theta')) % (2 * pi)
+            kwargs['psi'] = float(kwargs.get('psi')) % (2 * pi)
+
+        self._check_kwarg_completeness(Vector, kwargs)
+        validate_initial_point()
+        validate_luminance()
+        validate_w_length()
+        validate_angles()
+        return kwargs
 
 
-@kwargs_only
 class Point(ICheckable):
     """
     Just a point w/ cartesian coordinates in an optical system, where z is an optical axis
@@ -184,17 +206,12 @@ class Vector:
     theta: float            # angle between optical axis and the vector in (z,y) plane positive in CCW direction
     psi: float              # angle between optical axis and the vector in (z,x) plane positive in CCW direction
     y
-    ^    ^ x
-    |   /
+    ^   ^ x
+    |  /
     | /
     + ------------> z
     """
     __slots__ = '_initial_point', '_lum', '_w_length', '_theta', '_psi'
-    initial_point: Point
-    lum: float
-    w_length: float
-    theta: float
-    psi: float
 
     def __post_init__(self):
         self._initial_point: Point = self.initial_point
@@ -202,6 +219,10 @@ class Vector:
         self._w_length: float = self.w_length
         self._theta: float = self.theta
         self._psi: float = self.psi
+
+    def _validate_inputs(self, *args, **kwargs):
+        kwargs = VectorCheckStrategy().validate(*args, **kwargs)
+        return kwargs
 
     @property
     def direction(self) -> Dict[str, float]:
