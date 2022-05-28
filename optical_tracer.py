@@ -541,10 +541,10 @@ class Layer:
         """Returns angle in radians of tangential line to the surface at the point of intersection."""
         # FIXME: test this
         normal_angle = self.get_normal_angle(point=point)
-        if 0 <= normal_angle < pi/2:
-            tangential_angle = normal_angle + pi/2
-        else:   # pi/2 <= normal_angle < pi
-            tangential_angle = normal_angle - pi/2
+        if 0 <= normal_angle < pi / 2:
+            tangential_angle = normal_angle + pi / 2
+        else:  # pi/2 <= normal_angle < pi
+            tangential_angle = normal_angle - pi / 2
         assert 0 <= tangential_angle < pi
         return tangential_angle
 
