@@ -195,9 +195,23 @@ class Point(ICheckable):
         return f'{self.__class__}, x = {self.x}, y = {self.y}, z = {self.z}'
 
 
-@kwargs_only
-@dataclass
-class Vector:
+def get_distance(point1: Point, point2: Point) -> float:
+    """
+    Returns distance to the point
+    :param point1: particular point with .x, .y, .z attrs
+    :param point2: particular point with .x, .y, .z attrs
+    :return: distance to the particular point
+    """
+    assert all((isinstance(point1, Point), isinstance(point2, Point)))
+
+    attrs_exist = [hasattr(point1, 'x'), hasattr(point1, 'y'), hasattr(point1, 'z'),
+                   hasattr(point2, 'x'), hasattr(point2, 'y'), hasattr(point2, 'z')]
+    if all(attrs_exist):
+        return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2)
+    raise UnspecifiedFieldException(f'Can'f't find attr in {point1, point2}')
+
+
+class Vector(ICheckable):
     """
     A simple vector with defined energy (luminance) in it
     initial_point: Point
@@ -552,7 +566,7 @@ def _find_closest_intersection(*, approved_intersections: List[Point], vector: V
     min_distance = float('inf')
     cand = None
     for point in approved_intersections:
-        current_distance = point.get_distance(vector.initial_point)
+        current_distance = get_distance(point, vector.initial_point)
         if current_distance < min_distance:
             min_distance = current_distance
             cand = point
@@ -610,7 +624,7 @@ class OpticalComponent:
             layer_x = vector_x = vector.initial_point.x
             layer_y = vector_y = vector.initial_point.y
             layer_z = layer.boundary(layer_y)  # FIXME: x here isn't being supported yet
-            vector_point_difference = vector.initial_point.get_distance(Point(x=layer_x, y=layer_y, z=layer_z))
+            vector_point_difference = get_distance(Point(x=layer_x, y=layer_y, z=layer_z), vector.initial_point)
             vector_is_on_current_bound = vector_point_difference <= vector.w_length * NANOMETRE / 4
             if vector_is_on_current_bound:
                 return layer
@@ -919,9 +933,12 @@ def main():
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
         return opt_sys
 
-    opt_sys = create_opt_sys()
-    v = Vector(initial_point=Point(x=0, y=0, z=-2), lum=1, w_length=555, theta=0.1, psi=0)
-    print(*opt_sys.trace(vector=v), sep='\n')
+    in_point = Point(x=0, y=0, z=-2)
+    in_point.set_coords(x="1", y=2, z=3)
+    print(in_point)
+    # opt_sys = create_opt_sys()
+    # v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.1, psi=0)
+    # print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
 
 if __name__ == '__main__':
