@@ -60,14 +60,17 @@ class UnspecifiedFieldException(Exception):
 
 
 class ICheckable(ABC):
-    """Interface for object with necessity of input vars' check"""
+    """
+    Interface for object with necessity of input vars' validation.
+    All vars to validate are to be forwarded to attrs with name like '_val', which are defined in slots of a concrete cls
+    """
 
     def __init__(self, *args, **kwargs):
         kwargs = self._validate_inputs(*args, **kwargs)
         self._throw_inputs(*args, **kwargs)
 
     @abstractmethod
-    def _check_inputs(self, *args, **kwargs):
+    def _validate_inputs(self, *args, **kwargs):
         pass
 
     @abstractmethod
@@ -81,8 +84,24 @@ class BaseCheckStrategy(ABC):
     """Base strat class for object input check"""
 
     @abstractmethod
-    def check(self, *args, **kwargs):
+    def validate(self, *args, **kwargs):
         ...
+
+    @staticmethod
+    def _check_kwarg_completeness(cls, kwargs):
+        """
+        Checks if it's enough kwargs and if it's more than needed.
+        Raises  ObjectKeyWordsMismatchException if not enough, or if there are some extra kwargs
+        """
+
+        expected_kwargs_names = [kw[1:] if kw.startswith('_') else kw for kw in cls.__slots__]
+
+        if not all(coord in kwargs for coord in expected_kwargs_names):
+            raise ObjectKeyWordsMismatchException(f'Not enough args. Should exists {expected_kwargs_names},'
+                                                  f' but was given {kwargs}')
+
+        if not all(coord in expected_kwargs_names for coord in kwargs):
+            raise ObjectKeyWordsMismatchException(f'Wrong keyword in : {kwargs}, should be {expected_kwargs_names}')
 
 
 class PointCheckStrategy(BaseCheckStrategy):
