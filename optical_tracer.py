@@ -63,7 +63,7 @@ class ICheckable(ABC):
     """Interface for object with necessity of input vars' check"""
 
     def __init__(self, *args, **kwargs):
-        self._check_inputs(*args, **kwargs)
+        kwargs = self._validate_inputs(*args, **kwargs)
         self._throw_inputs(*args, **kwargs)
 
     @abstractmethod
@@ -72,7 +72,9 @@ class ICheckable(ABC):
 
     @abstractmethod
     def _throw_inputs(self, *args, **kwargs):
-        pass
+        """Throwing only for attrs starts with _underscore"""
+        [setattr(self, attr, kwargs[attr[1:]]) if attr.startswith('_') else setattr(self, attr, kwargs[attr])
+         for attr in self.__slots__]
 
 
 class BaseCheckStrategy(ABC):
@@ -84,18 +86,23 @@ class BaseCheckStrategy(ABC):
 
 
 class PointCheckStrategy(BaseCheckStrategy):
-    """The way in which any Point object's inputs should be checked"""  # FIXME: Add concrete conditions
+    """
+    The way in which any Point object's inputs should be checked
+    Check completeness and try to make all coords float
+    """
 
-    def check(self, *args, **kwargs):
-        expected_coords_names = [name[1:] for name in Point.__slots__ if name.startswith('_')]
-        for coord in kwargs.items():
-            kwargs[coord[0]] = float(coord[1])
+    def validate(self, *args, **kwargs):
+        def _make_kwagrs_float():
+            for coord in kwargs.items():
+                temp = float(coord[1])
+                if temp in (float('inf'), float('-inf')):
+                    raise ValueError(f'Not allowed points at infinity: {coord}')
+                kwargs[coord[0]] = temp
+            return kwargs
 
-        if not all(coord in kwargs for coord in expected_coords_names):
-            print(f'Not enough args. Should exists {expected_coords_names}')
-
-        if not all(coord in expected_coords_names for coord in kwargs):
-            warn(f'Wrong keyword in : {kwargs}', ObjectKeyWordsMismatch)
+        self._check_kwarg_completeness(Point, kwargs)
+        kwargs = _make_kwagrs_float()
+        return kwargs
 
 
 class VectorCheckStrategy(BaseCheckStrategy):
@@ -119,31 +126,18 @@ class Point(ICheckable):
     def x(self):
         return self._x
 
-    @x.setter
-    def x(self, val):
-        self._x = val
-
     @property
     def y(self):
         return self._y
-
-    @y.setter
-    def y(self, val):
-        self._y = val
 
     @property
     def z(self):
         return self._z
 
-    @z.setter
-    def z(self, val):
-        self._z = val
+    def set_coords(self, **coords):
+        coords = self._validate_inputs(**coords)
+        [setattr(self, key, coords[key[1:]]) for key in self.__slots__ if key.startswith('_')]
 
-    def set_coords(self, **coords: Union[float, int]):  # FIXME: check inputs
-        tmp_coords = coords.get('x'), coords.get('y'), coords.get('z')
-        self_coords = self._x, self._y, self._z
-        self_coords = [self_coord if tmp_coord is None else tmp_coord
-                       for tmp_coord, self_coord in zip(tmp_coords, self_coords)]
 
     def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:  # FIXME: check inputs
         """
@@ -152,23 +146,9 @@ class Point(ICheckable):
         """
         return {coord: getattr(self, '_' + coord) for coord in coords}
 
-    def get_distance(self, point) -> float:
-        """
-        Returns distance to the point
-        :param point: particular point with .x, .y, .z attrs
-        :return: distance to the particular point
-        """
-        if all((hasattr(point, 'x'), hasattr(point, 'y'), hasattr(point, 'z'))):
-            return sqrt((self.x - point.x) ** 2 + (self.y - point.y) ** 2 + (self.z - point.z) ** 2)
-        raise UnspecifiedFieldException
-
-    def _check_inputs(self, *args, **kwargs):
-        PointCheckStrategy().check(*args, **kwargs)
-
-    def _throw_inputs(self, *args, **kwargs):  # FIXME: fix this shit
-        self._x: float = kwargs['x']
-        self._y: float = kwargs['y']
-        self._z: float = kwargs['z']
+    def _validate_inputs(self, *args, **kwargs):
+        kwargs = PointCheckStrategy().validate(*args, **kwargs)
+        return kwargs
 
     def __repr__(self):
         return f'{self.__class__}, x = {self.x}, y = {self.y}, z = {self.z}'
