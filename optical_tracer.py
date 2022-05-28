@@ -49,7 +49,7 @@ class NoIntersectionWarning(Warning):
     pass
 
 
-class ObjectKeyWordsMismatch(Warning):
+class ObjectKeyWordsMismatchException(Warning):
     """Raises when __init__ gets unexpected **kwargs"""
     pass
 
