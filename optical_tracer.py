@@ -483,7 +483,7 @@ class Layer:
 
         def _is_near_boundary():
             # check if initial point of the vector is located on the boundary
-            vector_point_difference = vector.initial_point.get_distance(intersection_point)
+            vector_point_difference = get_distance(vector.initial_point, intersection_point)
             if vector_point_difference <= vector.w_length * QUARTER_PART_IN_MM:
                 if DEBUG:
                     warn(f'\nVector seems to be close to boundary: difference is {vector_point_difference} mm \n'
@@ -692,7 +692,7 @@ class OpticalComponent:
         # get intersection
         intersection = intersection_layer, intersection_point = self._get_component_intersection(vector=input_vector)
         # TODO: check existence of intersection
-        destination_distance = input_vector.initial_point.get_distance(intersection_point)
+        destination_distance = get_distance(input_vector.initial_point, intersection_point)
         attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
         assert 0 <= attenuation <= 1
         attenuated_lum = input_vector.lum - attenuation * input_vector.lum
@@ -746,7 +746,7 @@ class DefaultOpticalComponent(OpticalComponent):
         intersection = intersection_layer, intersection_point = \
             self._get_component_intersection(vector=input_vector, components=components)
         # TODO: check existence of intersection
-        destination_distance = input_vector.initial_point.get_distance(intersection_point)
+        destination_distance = get_distance(input_vector.initial_point, intersection_point)
         attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
         assert 0 <= attenuation <= 1
         attenuated_lum = input_vector.lum - attenuation * input_vector.lum
