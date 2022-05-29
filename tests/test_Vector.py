@@ -51,7 +51,6 @@ expected_exception_lst = [ObjectKeyWordsMismatchException,
                           ValueError,
                          ]
 
-@pytest.mark.current
 @pytest.mark.parametrize('kwargs, expected_expection', [(*zip(kwargs_lst2, expected_exception_lst))])
 def test___init__exception(kwargs, expected_expection):
     with pytest.raises(expected_expection):
