@@ -129,8 +129,8 @@ class VectorCheckStrategy(BaseCheckStrategy):
     The way in which any Vector object's inputs should be checked
     Check kwarg completeness
     Initial point should be instance of Point cls otherwise rises UnspecifiedFieldException
-    Make luminance float
-    Warn if wave length is out of optical range and make it float
+    Make luminance float and ensure it is not negative
+    Warn if wave length is out of optical range, and ensure it is not negative, and make it float
     Div angles to 2*pi and make them float
     """
 
@@ -142,12 +142,18 @@ class VectorCheckStrategy(BaseCheckStrategy):
                 raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
 
         def validate_luminance():
-            kwargs['lum'] = float(kwargs.get('lum'))
+            temp =float(kwargs.get('lum'))
+            if temp < 0:
+                raise UnspecifiedFieldException(f'Luminance should be not negative')
+            kwargs['lum'] = temp
 
         def validate_w_length():
-            if not OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]:
+            temp = float(kwargs.get('w_length'))
+            if temp < 0:
+                raise UnspecifiedFieldException(f'Wave length  should be not negative')
+            if not (OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]):
                 warn('Wave length is out of optical range')
-            kwargs['w_length'] = float(kwargs.get('w_length'))
+            kwargs['w_length'] = temp
 
         def validate_angles():
             kwargs['theta'] = float(kwargs.get('theta')) % (2 * pi)
