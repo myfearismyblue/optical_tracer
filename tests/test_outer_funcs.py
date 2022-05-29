@@ -33,6 +33,6 @@ expected_exception = [UnspecifiedFieldException,
 
 
 @pytest.mark.parametrize('expected_exception, points', [(*zip(expected_exception, create_points_exception()))])
-def test_get_distance(expected_exception, points):
+def test_get_distance_exceptions(expected_exception, points):
     with pytest.raises(expected_exception):
         get_distance(*points)
