@@ -125,7 +125,14 @@ class PointCheckStrategy(BaseCheckStrategy):
 
 
 class VectorCheckStrategy(BaseCheckStrategy):
-    """The way in which any Vector object's inputs should be checked"""  # FIXME: Add concrete conditions
+    """
+    The way in which any Vector object's inputs should be checked
+    Check kwarg completeness
+    Initial point should be instance of Point cls otherwise rises UnspecifiedFieldException
+    Make luminance float
+    Warn if wave length is out of optical range and make it float
+    Div angles to 2*pi and make them float
+    """
 
     def validate(self, *args, **kwargs):
         assert all((f'_{attr}' in Vector.__slots__ for attr in ['initial_point', 'lum', 'w_length', 'theta', 'psi']))
