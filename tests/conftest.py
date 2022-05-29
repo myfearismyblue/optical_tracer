@@ -1,7 +1,28 @@
 import pytest
 
-from optical_tracer import Side, OpticalComponent, Material, Layer, OpticalSystem
+from optical_tracer import Layer, Material,OpticalComponent,  OpticalSystem, Point, Side
 
+
+@pytest.fixture
+def create_point():
+    pt = Point(x=0, y=0, z=0)
+    return pt
+
+@pytest.fixture
+def create_parabolic_layer():
+    parabolic_l = Layer(name='parabolic',
+                        boundary=lambda y: y ** 2,
+                        side=Side.RIGHT,
+                        )
+    return parabolic_l
+
+@pytest.fixture
+def create_plane_layer():
+    plane_l = Layer(name='plane',
+                boundary=lambda y: 11,
+                side=Side.LEFT,
+                )
+    return plane_l
 
 @pytest.fixture
 def create_two_lenses_opt_sys():
@@ -29,7 +50,6 @@ def create_two_lenses_opt_sys():
     opt_sys.add_component(component=first_lense)
     opt_sys.add_component(component=fourth_lense)
     return opt_sys
-
 
 @pytest.fixture
 def create_parallel_slices_opt_sys():

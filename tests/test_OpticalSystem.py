@@ -4,42 +4,13 @@ from typing import List, Tuple, Union
 import pytest
 from pytest import approx
 
-from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, NANOMETRE
-from optical_tracer import reversed_side, Side, Vector
-from optical_tracer import ObjectKeyWordsMismatchException, VectorOutOfComponentException
+from optical_tracer import Material, Point
+from optical_tracer import Vector
+from optical_tracer import VectorOutOfComponentException
 
 deg = 2 * pi / 360
 Air = Material(name="Air", transmittance=0, refractive_index=1)
 TOL = 0.001
-
-@pytest.fixture
-def create_point():
-    pt =Point(x=0, y=0, z=0)
-    return pt
-
-@pytest.mark.slow
-@pytest.mark.parametrize('coords, expected', [({'y': "999999", 'x': -1, 'z': 0}, (-1, 999999, 0))])
-def test_set_coords(coords, expected, create_point):
-    pt = create_point
-    pt.set_coords(**coords)
-    assert (pt.x, pt.y, pt.z) == expected
-
-@pytest.mark.slow
-@pytest.mark.parametrize('coords, expected_exception', [({'y': "999999", 'z': 0}, ObjectKeyWordsMismatchException),
-                                                        ({}, ObjectKeyWordsMismatchException),
-                                                        ({'y': "999999", 'z': 0, 'x': 1, 'q': 'buz'}, ObjectKeyWordsMismatchException),
-                                                        ({'y': "-inf", 'z': 0, 'x': 1}, ValueError),
-                                                        ({'y': [1], 'z': 0, 'x': 1}, TypeError),
-                                                        # ({'y': "0", 'z': 0, 'x': 1, 'x': 2, 'y':3, 'z':4}, ObjectKeyWordsMismatchException),
-                                                        ({'y': "D", 'z': 0, 'x': 1,}, ValueError),
-
-                                                        ]
-                         )
-def test_set_coords_exception(coords, expected_exception, create_point):
-    pt = create_point
-    with pytest.raises(expected_exception):
-        pt.set_coords(**coords)
-
 
 
 @pytest.mark.slow
@@ -58,38 +29,6 @@ def test__get_refract_angle(vector_angle, normal_angle, prev_index, next_index, 
     assert opt_sys._get_refract_angle(vector_angle=vector_angle, normal_angle=normal_angle,
                                       prev_index=prev_index,
                                       next_index=next_index) == expected
-
-
-parabolic_l = Layer(name='parabolic',
-                    boundary=lambda y: y ** 2,
-                    side=Side.RIGHT,
-                    )
-plane_l = Layer(name='plane',
-                boundary=lambda y: 11,
-                side=Side.LEFT,
-                )
-
-point = [Point(x=0, y=0.0001, z=0),
-         Point(x=0, y=0, z=0),
-         Point(x=0, y=-0.0001, z=0),
-         Point(x=0, y=100, z=0),
-         Point(x=0, y=-100, z=0),
-         Point(x=0, y=11, z=0),
-         ]
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize('layer, point, expected',
-                         [(parabolic_l, point[0], approx(3.1413926, abs=TOL)),  # ~<pi - approaching zero from plus
-                          (parabolic_l, point[1], approx(0, abs=TOL)),  # parallel to z-axis
-                          (parabolic_l, point[2], approx(0.0001999, abs=TOL)),  # approaching zero from minus
-                          (parabolic_l, point[3], approx(1.575796285141478, abs=TOL)),  # almost perpendicular
-                          (parabolic_l, point[4], approx(1.5657963684483152, abs=TOL)),
-                          # same approaching from another side
-                          (plane_l, point[5], approx(0, abs=TOL)),  # check with constant (plane) bound
-                          ])
-def test__get_normal_angle(layer, point, expected):
-    assert layer.get_normal_angle(point=point) == expected
 
 
 v = [Vector(initial_point=Point(x=0, y=0, z=0.1), lum=1, w_length=555, theta=0.01, psi=0),  # inside first
@@ -119,23 +58,6 @@ def test__get_containing_component(vector, expected_exception, create_two_lenses
     opt_sys = create_two_lenses_opt_sys
     with pytest.raises(expected_exception):
         opt_sys._get_containing_component(vector=vector) == expected_exception
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize('side, expected', [(Side.LEFT, Side.RIGHT),
-                                            (Side.RIGHT, Side.LEFT),
-                                            ])
-def test_reversed_side(side, expected):
-    assert reversed_side(side) == expected
-
-
-@pytest.mark.slow
-@pytest.mark.parametrize('side, expected_exception', [('Wrong input', AssertionError),
-                                                      (None, AssertionError),
-                                                      (Side, AssertionError)])
-def test_reversed_side_exception(side, expected_exception):
-    with pytest.raises(expected_exception):
-        reversed_side(side)
 
 
 v = [Vector(initial_point=Point(x=0, y=0, z=-1), lum=1, w_length=555, theta=0.3, psi=0),
