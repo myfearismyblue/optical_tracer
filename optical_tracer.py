@@ -210,18 +210,15 @@ class Point(ICheckable):
 
 def get_distance(point1: Point, point2: Point) -> float:
     """
-    Returns distance to the point
+    Returns distance between points
     :param point1: particular point with .x, .y, .z attrs
     :param point2: particular point with .x, .y, .z attrs
     :return: distance to the particular point
     """
-    assert all((isinstance(point1, Point), isinstance(point2, Point)))
+    if not all((isinstance(point1, Point), isinstance(point2, Point))):
+        raise UnspecifiedFieldException(f'Should be given Point cls, but was given: {type(point1), type(point2)}')
+    return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2)
 
-    attrs_exist = [hasattr(point1, 'x'), hasattr(point1, 'y'), hasattr(point1, 'z'),
-                   hasattr(point2, 'x'), hasattr(point2, 'y'), hasattr(point2, 'z')]
-    if all(attrs_exist):
-        return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2)
-    raise UnspecifiedFieldException(f'Can'f't find attr in {point1, point2}')
 
 
 class Vector(ICheckable):
