@@ -83,9 +83,23 @@ class ICheckable(ABC):
 class BaseCheckStrategy(ABC):
     """Base strat class for object input check"""
 
-    @abstractmethod
-    def validate(self, *args, **kwargs):
-        ...
+    def validate_and_check(self, cls, expected_attrs, *args, **kwargs):
+        """
+        The way in which any object inputs should be checked
+        1. Ensure __slots__ has all attrs which are considered to be properties and all attrs in slot are to be checked
+        2. Ensure kwargs and __slots__ have the same attrs
+        3. Make abstract validation
+        """
+        self._ensure___slots__ok(cls, expected_attrs)
+        self._check_kwarg_completeness(cls, kwargs)
+        kwargs = self.validate(*args, **kwargs)
+        return kwargs
+
+    @staticmethod
+    def _ensure___slots__ok(cls, expected_attrs):
+        """Inner assertion to ensure validation to be done for all __slots__ """
+        assert all((f'{sl_attr[1:]}' if sl_attr.startswith('_') else sl_attr in expected_attrs for sl_attr in cls.__slots__))
+        assert all((f'_{exp_attr}' in cls.__slots__ for exp_attr in expected_attrs))
 
     @staticmethod
     def _check_kwarg_completeness(cls, kwargs):
@@ -103,11 +117,15 @@ class BaseCheckStrategy(ABC):
         if not all(coord in expected_kwargs_names for coord in kwargs):
             raise ObjectKeyWordsMismatchException(f'Wrong keyword in : {kwargs}, should be {expected_kwargs_names}')
 
+    @abstractmethod
+    def validate(self, *args, **kwargs):
+        ...
+
 
 class PointCheckStrategy(BaseCheckStrategy):
     """
     The way in which any Point object's inputs should be checked
-    Check completeness and try to make all coords float
+    Make all coords float
     """
 
     def validate(self, *args, **kwargs):
@@ -119,7 +137,6 @@ class PointCheckStrategy(BaseCheckStrategy):
                 kwargs[coord[0]] = temp
             return kwargs
 
-        self._check_kwarg_completeness(Point, kwargs)
         kwargs = _make_kwagrs_float()
         return kwargs
 
@@ -127,7 +144,6 @@ class PointCheckStrategy(BaseCheckStrategy):
 class VectorCheckStrategy(BaseCheckStrategy):
     """
     The way in which any Vector object's inputs should be checked
-    Check kwarg completeness
     Initial point should be instance of Point cls otherwise rises UnspecifiedFieldException
     Make luminance float and ensure it is not negative
     Warn if wave length is out of optical range, and ensure it is not negative, and make it float
@@ -135,8 +151,6 @@ class VectorCheckStrategy(BaseCheckStrategy):
     """
 
     def validate(self, *args, **kwargs):
-        assert all((f'_{attr}' in Vector.__slots__ for attr in ['initial_point', 'lum', 'w_length', 'theta', 'psi']))
-
         def validate_initial_point():
             if not isinstance(kwargs.get('initial_point'), Point):
                 raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
@@ -159,7 +173,6 @@ class VectorCheckStrategy(BaseCheckStrategy):
             kwargs['theta'] = float(kwargs.get('theta')) % (2 * pi)
             kwargs['psi'] = float(kwargs.get('psi')) % (2 * pi)
 
-        self._check_kwarg_completeness(Vector, kwargs)
         validate_initial_point()
         validate_luminance()
         validate_w_length()
@@ -192,7 +205,6 @@ class Point(ICheckable):
         coords = self._validate_inputs(**coords)
         [setattr(self, key, coords[key[1:]]) for key in self.__slots__ if key.startswith('_')]
 
-
     def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:  # FIXME: check inputs
         """
         :argument Use string as input like point.get_coords('yx').
@@ -201,7 +213,8 @@ class Point(ICheckable):
         return {coord: getattr(self, '_' + coord) for coord in coords}
 
     def _validate_inputs(self, *args, **kwargs):
-        kwargs = PointCheckStrategy().validate(*args, **kwargs)
+        expected_attrs = ['x', 'y', 'z']
+        kwargs = PointCheckStrategy().validate_and_check(cls=Point, expected_attrs=expected_attrs, *args, **kwargs)
         return kwargs
 
     def __repr__(self):
@@ -220,7 +233,6 @@ def get_distance(point1: Point, point2: Point) -> float:
     return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2)
 
 
-
 class Vector(ICheckable):
     """
     A simple vector with defined energy (luminance) in it
@@ -237,15 +249,9 @@ class Vector(ICheckable):
     """
     __slots__ = '_initial_point', '_lum', '_w_length', '_theta', '_psi'
 
-    def __post_init__(self):
-        self._initial_point: Point = self.initial_point
-        self._lum: float = self.lum
-        self._w_length: float = self.w_length
-        self._theta: float = self.theta
-        self._psi: float = self.psi
-
     def _validate_inputs(self, *args, **kwargs):
-        kwargs = VectorCheckStrategy().validate(*args, **kwargs)
+        expected_attrs = ['initial_point', 'lum', 'w_length', 'theta', 'psi']
+        kwargs = VectorCheckStrategy().validate_and_check(cls=Vector, expected_attrs=expected_attrs, *args, **kwargs)
         return kwargs
 
     @property
@@ -321,7 +327,6 @@ class Vector(ICheckable):
         theta = atan(1 / slope) % (2*pi)
         theta = theta * 180/pi if deg else theta
         print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
-
 
 
 @kwargs_only
@@ -566,6 +571,8 @@ class Layer:
         boundary = self.boundary
         opposite_name = f'opposite {self.name}'
         return Layer(boundary=boundary, side=opposite_side, name=opposite_name)
+
+
 
 def _find_closest_intersection(*, approved_intersections: List[Point], vector: Vector) -> Point:
     """
