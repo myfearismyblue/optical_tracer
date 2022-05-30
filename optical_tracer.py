@@ -180,6 +180,19 @@ class VectorCheckStrategy(BaseCheckStrategy):
         return kwargs
 
 
+class LayerCheckStrategy(BaseCheckStrategy):
+    def validate(self, *args, **kwargs):
+        """
+        The way in which any Layers object's inputs should be checked
+        Check kwarg types are ok
+        """
+        kwargs['name'] = str(kwargs['name'])
+        if not all((isinstance(kwargs['boundary'], Callable),
+                   isinstance(kwargs['side'], Side))):
+            raise UnspecifiedFieldException
+        return kwargs
+
+
 class Point(ICheckable):
     """
     Just a point w/ cartesian coordinates in an optical system, where z is an optical axis
@@ -385,22 +398,17 @@ def reversed_side(side: Side) -> Side:
     return Side.RIGHT if side == Side.LEFT else Side.LEFT
 
 
-@kwargs_only
-@dataclass
-class Layer:
+class Layer(ICheckable):
     """
     Each optical component is represented by intersection of layers. Each layer has name, boundary and active side,
     where material supposed to be
     """
     __slots__ = '_name', '_boundary', '_side'
-    name: str
-    boundary: Callable
-    side: Side = field(default=Side.RIGHT)
 
-    def __post_init__(self):
-        self._name = self.name
-        self._boundary = self.boundary
-        self._side = self.side
+    def _validate_inputs(self, *args, **kwargs):
+        expected_attrs = ['name', 'boundary', 'side']
+        kwargs = LayerCheckStrategy().validate_and_check(cls=Layer, expected_attrs=expected_attrs, *args, **kwargs)
+        return kwargs
 
     @property
     def name(self) -> str:
