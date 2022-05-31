@@ -5,7 +5,7 @@ from optical_tracer import Layer, Material,OpticalComponent,  OpticalSystem, Poi
 
 @pytest.fixture
 def create_point():
-    pt = Point(x=0, y=0, z=0)
+    pt = Point(z=0.0, x='-1.2', y=+1)
     return pt
 
 @pytest.fixture

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 import ctypes as ct
 from copy import copy
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import wraps
 from enum import auto, Enum
 from math import asin, atan, pi, sin, sqrt, tan
@@ -218,12 +218,16 @@ class Point(ICheckable):
         coords = self._validate_inputs(**coords)
         [setattr(self, key, coords[key[1:]]) for key in self.__slots__ if key.startswith('_')]
 
-    def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:  # FIXME: check inputs
+    def get_coords(self, coords: str) -> Dict[str, Union[float, int]]:
         """
         :argument Use string as input like point.get_coords('yx').
         :returns dict like {'y': 0, 'x': 0.5}
         """
-        return {coord: getattr(self, '_' + coord) for coord in coords}
+        if not coords or not all(('_'+str(coord) in self.__slots__ for coord in coords)):
+            raise UnspecifiedFieldException(
+                f'Input coords mismatches. Was given {[c for c in coords]} '
+                f'but needed any of {[c[1:] if c.startswith("_") else c for c in self.__slots__]}')
+        return {str(coord): getattr(self, '_' + str(coord)) for coord in coords}
 
     def _validate_inputs(self, *args, **kwargs):
         expected_attrs = ['x', 'y', 'z']
