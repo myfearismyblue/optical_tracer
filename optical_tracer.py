@@ -138,15 +138,7 @@ class PointCheckStrategy(BaseCheckStrategy):
         return kwargs
 
     def validate(self, *args, **kwargs):
-        def _make_kwagrs_float():
-            for coord in kwargs.items():
-                temp = float(coord[1])
-                if temp in (float('inf'), float('-inf')):
-                    raise ValueError(f'Not allowed points at infinity: {coord}')
-                kwargs[coord[0]] = temp
-            return kwargs
-
-        kwargs = _make_kwagrs_float()
+        kwargs = self._make_kwagrs_float(kwargs)
         return kwargs
 
 
