@@ -1,12 +1,16 @@
 import pytest
 
-from optical_tracer import Layer, Material,OpticalComponent,  OpticalSystem, Point, Side
+from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, Side, Vector
 
 
 @pytest.fixture
 def create_point():
     pt = Point(z=0.0, x='-1.2', y=+1)
     return pt
+
+@pytest.fixture
+def create_vector():
+    return Vector(initial_point=Point(x=999, y=999, z=999), lum=999, w_length=999, theta=999, psi=999)
 
 @pytest.fixture
 def create_parabolic_layer():
