@@ -4,7 +4,7 @@ from copy import copy
 from dataclasses import dataclass
 from functools import wraps
 from enum import auto, Enum
-from math import asin, atan, pi, sin, sqrt, tan
+from math import asin, atan, pi, sin, sqrt, tan, isnan
 from typing import Callable, Dict, Optional, List, Tuple, Union
 from warnings import warn
 
@@ -251,6 +251,11 @@ class Point(ICheckable):
         kwargs = PointCheckStrategy().validate_and_check(cls=Point, expected_attrs=expected_attrs, *args, **kwargs)
         return kwargs
 
+    def __eq__(self, other):
+        if isinstance(other, Point) and (other.x, other.y, other.z == self.x, self.y, self.z):
+            return True
+        return False
+
     def __repr__(self):
         return f'{self.__class__}, x = {self.x}, y = {self.y}, z = {self.z}'
 
@@ -304,7 +309,8 @@ class Vector(ICheckable):
 
     @initial_point.setter
     def initial_point(self, value: Point):
-        self._initial_point = value
+        temp_val = VectorCheckStrategy.validate_initial_point({'initial_point': value})
+        self._initial_point = temp_val['initial_point']
 
     @property
     def lum(self) -> Union[int, float]:
@@ -312,7 +318,8 @@ class Vector(ICheckable):
 
     @lum.setter
     def lum(self, value: Union[int, float]):
-        self._lum = value
+        temp_val = VectorCheckStrategy.validate_luminance({'lum': value})
+        self._lum = temp_val['lum']
 
     @property
     def w_length(self) -> Union[int, float]:
@@ -320,7 +327,8 @@ class Vector(ICheckable):
 
     @w_length.setter
     def w_length(self, value: Union[int, float]):
-        self._w_length = value
+        temp_val = VectorCheckStrategy.validate_w_length({'w_length': value})
+        self._w_length = temp_val['w_length']
 
     @property
     def theta(self) -> Union[int, float]:
@@ -328,7 +336,8 @@ class Vector(ICheckable):
 
     @theta.setter
     def theta(self, value: Union[int, float]):
-        self._theta = value
+        temp_val = VectorCheckStrategy.validate_angles({'theta': value})
+        self._theta = temp_val['theta']
 
     @property
     def psi(self) -> Union[int, float]:
@@ -336,7 +345,8 @@ class Vector(ICheckable):
 
     @psi.setter
     def psi(self, value: Union[int, float]):
-        self._psi = value
+        temp_val = VectorCheckStrategy.validate_angles({'psi': value})
+        self._psi = temp_val['psi']
 
     def get_line_equation(self, repr=False) -> Callable:  # FIXME: rename repr here
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
