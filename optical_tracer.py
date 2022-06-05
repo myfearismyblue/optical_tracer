@@ -128,6 +128,15 @@ class PointCheckStrategy(BaseCheckStrategy):
     Make all coords float
     """
 
+    @staticmethod
+    def _make_kwagrs_float(kwargs):
+        for coord in kwargs.items():
+            temp = float(coord[1])
+            if temp in (float('inf'), float('-inf')) or isnan(temp):
+                raise ValueError(f'Not allowed points at infinity: {coord}')
+            kwargs[coord[0]] = temp
+        return kwargs
+
     def validate(self, *args, **kwargs):
         def _make_kwagrs_float():
             for coord in kwargs.items():
@@ -150,33 +159,49 @@ class VectorCheckStrategy(BaseCheckStrategy):
     Div angles to 2*pi and make them float
     """
 
+    @staticmethod
+    def validate_initial_point(kwargs):
+        if not isinstance(kwargs.get('initial_point'), Point):
+            raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
+        return kwargs
+
+    @staticmethod
+    def validate_luminance(kwargs):
+        temp = float(kwargs.get('lum'))
+        if temp in (float('inf'), float('-inf')) or isnan(temp):
+            raise ValueError(f'Not allowed luminance infinity: {temp}')
+        elif temp < 0:
+            raise UnspecifiedFieldException(f'Luminance should be not negative')
+        kwargs['lum'] = temp
+        return kwargs
+
+    @staticmethod
+    def validate_w_length(kwargs):
+        temp = float(kwargs.get('w_length'))
+        if temp < 0:
+            raise UnspecifiedFieldException(f'Wave length  should be not negative')
+        elif temp in (float('inf'), float('-inf')) or isnan(temp):
+            raise ValueError(f'Not allowed wave length infinity: {temp}')
+        if not (OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]):
+            warn('Wave length is out of optical range')
+        kwargs['w_length'] = temp
+        return kwargs
+
+    @staticmethod
+    def validate_angles(kwargs):
+        for kw in kwargs:
+            if kw in ['theta', 'psi']:
+                temp = float(kwargs[kw])
+                if temp in (float('inf'), float('-inf')) or isnan(temp):
+                    raise ValueError(f'Not allowed angle: {kw}: {temp}')
+                kwargs[kw] = temp % (2 * pi)
+        return kwargs
+
     def validate(self, *args, **kwargs):
-        def validate_initial_point():
-            if not isinstance(kwargs.get('initial_point'), Point):
-                raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
-
-        def validate_luminance():
-            temp =float(kwargs.get('lum'))
-            if temp < 0:
-                raise UnspecifiedFieldException(f'Luminance should be not negative')
-            kwargs['lum'] = temp
-
-        def validate_w_length():
-            temp = float(kwargs.get('w_length'))
-            if temp < 0:
-                raise UnspecifiedFieldException(f'Wave length  should be not negative')
-            if not (OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]):
-                warn('Wave length is out of optical range')
-            kwargs['w_length'] = temp
-
-        def validate_angles():
-            kwargs['theta'] = float(kwargs.get('theta')) % (2 * pi)
-            kwargs['psi'] = float(kwargs.get('psi')) % (2 * pi)
-
-        validate_initial_point()
-        validate_luminance()
-        validate_w_length()
-        validate_angles()
+        kwargs = self.validate_initial_point(kwargs)
+        kwargs = self.validate_luminance(kwargs)
+        kwargs = self.validate_w_length(kwargs)
+        kwargs = self.validate_angles(kwargs)
         return kwargs
 
 
