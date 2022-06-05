@@ -1,6 +1,27 @@
 import pytest
 
-from optical_tracer import ObjectKeyWordsMismatchException, UnspecifiedFieldException
+from optical_tracer import ObjectKeyWordsMismatchException, Point, UnspecifiedFieldException
+
+
+@pytest.mark.parametrize('coords, expected', [({'y': '10','x': -0 , 'z': 1.00000001}, {'x': 0, 'y': 10, 'z':1.00000001 })])
+def test___init__(coords, expected):
+    pt = Point(**coords)
+    assert (pt.x, pt.y, pt.z == expected['x'], expected['y'], expected['z'])
+
+
+@pytest.mark.parametrize('coords, expected_exceptions', [({'y': '+inf','x': -0, 'z': 1}, ValueError),
+                                                         ({'y': 0,'x': 'inf', 'z': 1}, ValueError),
+                                                         ({'y': 0,'x': 0, 'z': '-inf'}, ValueError),
+                                                         ({'y': 0,'x': 'Wrong', 'z': '-inf'}, ValueError),
+                                                         ({'y': 0,'x': 0, 'q': 999}, ObjectKeyWordsMismatchException),
+                                                         ({'y': 0,'x': 0, 'z': 0, 'q': 999}, ObjectKeyWordsMismatchException),
+                                                         ({'y': 0,'x': 0, }, ObjectKeyWordsMismatchException),
+                                                         ({}, ObjectKeyWordsMismatchException),
+                                                         ]
+                         )
+def test___init___exceptions(coords, expected_exceptions):
+    with pytest.raises(expected_exceptions):
+        Point(**coords)
 
 
 @pytest.mark.parametrize('coords, expected', [({'y': "999.44", 'x': -1, 'z': '-2.374'}, (-1, 999.44, -2.374))])
@@ -25,7 +46,6 @@ def test_set_coords_exception(coords, expected_exception, create_point):
         pt.set_coords(**coords)
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('coords, expected', [('x', {'x': -1.2}),
                                               ('zxy', {'z':0, 'x': -1.2, 'y': 1}),
                                               ('yz', {'y': 1, 'z': 0}),
