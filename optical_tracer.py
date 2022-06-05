@@ -257,7 +257,7 @@ class Point(ICheckable):
         return False
 
     def __repr__(self):
-        return f'{self.__class__}, x = {self.x}, y = {self.y}, z = {self.z}'
+        return f'{self.__class__.__name__}: x = {self.x}, y = {self.y}, z = {self.z}'
 
 
 def get_distance(point1: Point, point2: Point) -> float:
@@ -299,9 +299,7 @@ class Vector(ICheckable):
 
     @direction.setter
     def direction(self, values: Dict[str, float]):
-        tmp_theta, tmp_psi = values.get('theta'), values.get('psi')
-        self._theta = self._theta if tmp_theta is None else tmp_theta
-        self._psi = self._psi if tmp_psi is None else tmp_psi
+        self._theta, self._psi = VectorCheckStrategy.validate_angles(values)
 
     @property
     def initial_point(self) -> Point:
@@ -371,6 +369,9 @@ class Vector(ICheckable):
         theta = atan(1 / slope) % (2*pi)
         theta = theta * 180/pi if deg else theta
         print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}: ({self.initial_point}), {self.lum}, {self.w_length}, {self.theta}, {self.psi}'
 
 
 @kwargs_only
