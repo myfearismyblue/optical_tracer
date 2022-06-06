@@ -11,12 +11,12 @@ kwargs_lst1 = [
     {'initial_point': init_point, 'lum': '-0', 'w_length': '1000', 'theta': 0.1 + 4 * pi, 'psi': -0.1 - 3 * pi},
     {'initial_point': init_point, 'lum': 1, 'w_length': 780, 'theta': 2 * pi, 'psi': "0"},
     {'initial_point': init_point, 'lum': 1, 'w_length': 780, 'theta': -6 * pi, 'psi': -2 * pi},
-    ]
+]
 expected_lst1 = [
     {'initial_point': init_point, 'lum': 0, 'w_length': 1000, 'theta': approx(0.1, TOL), 'psi': approx(pi - 0.1, TOL)},
     {'initial_point': init_point, 'lum': 1, 'w_length': 780, 'theta': approx(0, TOL), 'psi': approx(0, TOL)},
     {'initial_point': init_point, 'lum': 1, 'w_length': 780, 'theta': approx(0, TOL), 'psi': approx(0, TOL)},
-    ]
+]
 
 
 @pytest.mark.parametrize('kwargs, expected', [(*zip(kwargs_lst1, expected_lst1))])
@@ -84,7 +84,6 @@ def test_direction_setter_exception(angles, expected_exception, create_vector):
         v.direction = angles
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('point, expected', [(Point(x='1', y='1', z='1'), Point(x=1, y=1, z=1)),
                                              ]
                          )
@@ -94,7 +93,6 @@ def test_initial_point_setter(point, expected, create_vector):
     assert v.initial_point == expected
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('point, expected_exception', [(None, UnspecifiedFieldException),
                                                        ({'x': 0, 'y': 0, 'z': 0}, UnspecifiedFieldException),
                                                        ]
@@ -126,10 +124,9 @@ def test_lum_setter_exception(lum, expected_exception, create_vector):
         v.lum = lum
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('w_length, expected', [(100, 100),
-                                               ('1.00', 1),
-                                               ]
+                                                ('1.00', 1),
+                                                ]
                          )
 def test_w_length_setter(w_length, expected, create_vector):
     v = create_vector
@@ -137,15 +134,64 @@ def test_w_length_setter(w_length, expected, create_vector):
     assert v.w_length == expected
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('w_length, expected_exception', [(-1, UnspecifiedFieldException),
                                                           ('-inf', ValueError),
                                                           ('nan', ValueError),
-                                                     ]
+                                                          ]
                          )
 def test_w_length_setter_exception(w_length, expected_exception, create_vector):
     v = create_vector
     with pytest.raises(expected_exception):
         v.w_length = w_length
 
+@pytest.mark.parametrize('theta, expected', [(-1, 2*pi - 1),
+                                             (2*pi, 0),
+                                             (-10*pi, 0),
+                                             (pi, pi),
+                                             (-pi, pi),
+                                             (3*pi/2, 3*pi/2),
+                                             (-3*pi/2, pi/2),
+                                             (-pi/2, 3*pi/2),
+                                             ("-1", 2*pi - 1),
+                                             ]
+                         )
+def test_theta_setter(theta, expected, create_vector):
+    v = create_vector
+    v.theta = theta
+    assert v.theta == expected
 
+@pytest.mark.parametrize('theta, expected_exception', [('Wrong', ValueError),
+                                                       ('-inf', ValueError),
+                                                       ('nan', ValueError),
+                                                       ]
+                         )
+def test_theta_setter_exception(theta, expected_exception, create_vector):
+    v = create_vector
+    with pytest.raises(expected_exception):
+        v.theta = theta
+
+@pytest.mark.parametrize('psi, expected', [(-1, 2*pi - 1),
+                                             (2*pi, 0),
+                                             (-10*pi, 0),
+                                             (pi, pi),
+                                             (-pi, pi),
+                                             (3*pi/2, 3*pi/2),
+                                             (-3*pi/2, pi/2),
+                                             (-pi/2, 3*pi/2),
+                                             ("-1", 2*pi - 1),
+                                             ]
+                         )
+def test_psi_setter(psi, expected, create_vector):
+    v = create_vector
+    v.psi = psi
+    assert v.psi == expected
+
+@pytest.mark.parametrize('psi, expected_exception', [('Wrong', ValueError),
+                                                       ('-inf', ValueError),
+                                                       ('nan', ValueError),
+                                                       ]
+                         )
+def test_psi_setter_exception(psi, expected_exception, create_vector):
+    v = create_vector
+    with pytest.raises(expected_exception):
+        v.psi = psi
