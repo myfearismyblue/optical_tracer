@@ -348,25 +348,18 @@ class Vector(ICheckable):
 
     def get_line_equation(self, repr=False) -> Callable:  # FIXME: rename repr here
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
-        try:
-            slope = 1 / tan(self.theta)
-            intercept = self.initial_point.z - self.initial_point.y / tan(self.theta)
-            print(f'{slope}*y + {intercept}') if repr else None
-            return lambda y: slope * y + intercept
-        except ZeroDivisionError:
-            # FIXME: fix whis stab
-            def output_behaviour(y):
-                return float('inf')
-            #     if y == self.initial_point.z:
-            #         return self.initial_point.z
-            #     else:
-            #         return float('inf')
-            #
-            return output_behaviour
+        slope = 1 / tan(self.theta)
+        intercept = self.initial_point.z - self.initial_point.y / tan(self.theta)
+        print(f'{slope}*y + {intercept}') if repr else None
+        return lambda y: slope * y + intercept
+
 
     @staticmethod
     def calculate_angles(*, slope, deg=False):
-        theta = atan(1 / slope) % (2*pi)
+        try:
+            theta = atan(1 / slope) % (2*pi)
+        except ZeroDivisionError:
+            theta = pi / 2
         theta = theta * 180/pi if deg else theta
         print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
 
@@ -491,10 +484,16 @@ class Layer(ICheckable):
         Returns valid closest intersection of the vector with boundary layer.boundary
         :return: (y, z) coord of intersections with boundary - the closest intersection to the point .
         """
-        line = vector.get_line_equation()
         surface = self.boundary
-        equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
-        probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+        try:
+            line = vector.get_line_equation()
+            equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
+            probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+        except ZeroDivisionError:
+            if surface(vector.initial_point.y) is None: # FIXME: actual behaviour of surface() has to be considered
+                raise NoIntersectionWarning
+            else:
+                probable_y_intersections = [vector.initial_point.y]
         # FIXME: throw input as attr. Think about this
         approved_ys = self._check_probable_intersections(probable_ys=probable_y_intersections, vector=vector)
         if not len(approved_ys):
@@ -524,7 +523,10 @@ class Layer(ICheckable):
         :return: list of (y, z) pairs
         """
         surface = self.boundary
-        line = vector.get_line_equation()
+        try:
+            line = vector.get_line_equation()
+        except ZeroDivisionError:
+            line = lambda y: surface(current_y) if y == vector.initial_point.y else float('inf')
 
         def _is_converges():
             # check if z-coordinate at the line and at the surface convergate
@@ -990,12 +992,15 @@ def main():
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
         return opt_sys
 
-    in_point = Point(x=0, y=0, z=-2)
-    in_point.set_coords(x="1", y=2, z=3)
-    print(in_point)
-    # opt_sys = create_opt_sys()
-    # v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.1, psi=0)
-    # print(*opt_sys.trace(vector=v), sep='\n')
+    in_point = Point(x=0, y=1, z=2)
+    # in_point.set_coords(x="1", y=2, z=3)
+    # print(in_point)
+    opt_sys = create_opt_sys()
+
+    v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.0, psi=0)
+    # intersec = opt_sys._components[0]._layers[1].get_layer_intersection(vector=v)
+    # print(intersec)
+    print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
 
 if __name__ == '__main__':
