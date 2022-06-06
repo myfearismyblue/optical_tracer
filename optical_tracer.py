@@ -170,10 +170,10 @@ class VectorCheckStrategy(BaseCheckStrategy):
     @staticmethod
     def validate_w_length(kwargs):
         temp = float(kwargs.get('w_length'))
-        if temp < 0:
-            raise UnspecifiedFieldException(f'Wave length  should be not negative')
-        elif temp in (float('inf'), float('-inf')) or isnan(temp):
+        if temp in (float('inf'), float('-inf')) or isnan(temp):
             raise ValueError(f'Not allowed wave length infinity: {temp}')
+        elif temp < 0:
+            raise UnspecifiedFieldException(f'Wave length  should be not negative')
         if not (OPTICAL_RANGE[0] <= float(kwargs.get('w_length')) <= OPTICAL_RANGE[1]):
             warn('Wave length is out of optical range')
         kwargs['w_length'] = temp

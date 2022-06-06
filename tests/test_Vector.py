@@ -105,7 +105,6 @@ def test_initial_point_setter_exception(point, expected_exception, create_vector
         v.initial_point = point
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('lum, expected', [(0, 0),
                                            ('1.00', 1),
                                            ]
@@ -116,7 +115,6 @@ def test_lum_setter(lum, expected, create_vector):
     assert v.lum == expected
 
 
-@pytest.mark.current
 @pytest.mark.parametrize('lum, expected_exception', [(-1, UnspecifiedFieldException),
                                                      ('-inf', ValueError),
                                                      ('nan', ValueError),
@@ -126,5 +124,28 @@ def test_lum_setter_exception(lum, expected_exception, create_vector):
     v = create_vector
     with pytest.raises(expected_exception):
         v.lum = lum
+
+
+@pytest.mark.current
+@pytest.mark.parametrize('w_length, expected', [(100, 100),
+                                               ('1.00', 1),
+                                               ]
+                         )
+def test_w_length_setter(w_length, expected, create_vector):
+    v = create_vector
+    v.w_length = w_length
+    assert v.w_length == expected
+
+
+@pytest.mark.current
+@pytest.mark.parametrize('w_length, expected_exception', [(-1, UnspecifiedFieldException),
+                                                          ('-inf', ValueError),
+                                                          ('nan', ValueError),
+                                                     ]
+                         )
+def test_w_length_setter_exception(w_length, expected_exception, create_vector):
+    v = create_vector
+    with pytest.raises(expected_exception):
+        v.w_length = w_length
 
 
