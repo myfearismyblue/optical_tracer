@@ -356,12 +356,18 @@ class Vector(ICheckable):
 
     @staticmethod
     def calculate_angles(*, slope, deg=False):
+        """Returns and inclination between optical axis (z-axis) and a line, which slope is given"""
+        slope = float(slope)
+        if isnan(slope):
+            raise ValueError('NaN is not a allowed as input')
+        deg = bool(deg)
         try:
-            theta = atan(1 / slope) % (2*pi)
+            theta = atan(1 / slope) % (pi)
         except ZeroDivisionError:
             theta = pi / 2
         theta = theta * 180/pi if deg else theta
         print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
+        return theta
 
     def __repr__(self):
         return f'{self.__class__.__name__}: ({self.initial_point}), {self.lum}, {self.w_length}, {self.theta}, {self.psi}'

@@ -195,3 +195,33 @@ def test_psi_setter_exception(psi, expected_exception, create_vector):
     v = create_vector
     with pytest.raises(expected_exception):
         v.psi = psi
+
+
+@pytest.mark.parametrize('slope_deg, expected', [({'slope': '+inf'}, 0),
+                                                 ({'slope': 10**9}, approx(0, abs=TOL)),
+                                                 ({'slope': 1}, pi/4),
+                                                 ({'slope': 0}, pi/2),
+                                                 ({'slope': -1}, 3 * pi / 4),
+                                                 ({'slope': -10**9}, approx(pi, abs=TOL)),
+                                                 ({'slope': '-inf'}, 0),
+                                                 ({'slope': '+inf', 'deg': True}, 0),
+                                                 ({'slope': 10 ** 9, 'deg': True}, approx(0, abs=TOL)),
+                                                 ({'slope': 1, 'deg': True}, 45),
+                                                 ({'slope': 0, 'deg': True}, 90),
+                                                 ({'slope': -1, 'deg': True}, 135),
+                                                 ({'slope': -10 ** 9, 'deg': True}, approx(180, abs=TOL)),
+                                                 ({'slope': '-inf', 'deg': True}, 0),
+                                                 ]
+                         )
+def test_calculate_angles(slope_deg, expected, create_vector):
+    v = create_vector
+    assert v.calculate_angles(**slope_deg) == expected
+
+@pytest.mark.parametrize('slope_deg, expected_exception', [({'slope': 'Wrong', 'deg': True},  ValueError),
+                                                       ({'slope': 'nan', 'deg': True}, ValueError),
+                                                    ]
+                         )
+def test_calculate_angles_exception(slope_deg, expected_exception, create_vector):
+    v = create_vector
+    with pytest.raises(expected_exception):
+        v.calculate_angles(**slope_deg)
