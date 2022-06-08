@@ -464,7 +464,8 @@ class Layer(ICheckable):
 
     @name.setter
     def name(self, _val: str):
-        self._name = _val
+        temp_val = LayerCheckStrategy.validate_name({'name': _val})
+        self._name = temp_val
 
     @property
     def boundary(self) -> Callable:
@@ -472,7 +473,8 @@ class Layer(ICheckable):
 
     @boundary.setter
     def boundary(self, _val: Callable):
-        self._boundary = _val
+        temp_val = LayerCheckStrategy.validate_boundary({'boundary': _val})
+        self._boundary = temp_val
 
     @property
     def side(self) -> Side:
@@ -480,7 +482,8 @@ class Layer(ICheckable):
 
     @side.setter
     def side(self, _val: Side):
-        self._side = _val
+        temp_val = LayerCheckStrategy.validate_side({'side': _val})
+        self._side = temp_val
 
     def contains_point(self, *, point: Point) -> bool:
         """
