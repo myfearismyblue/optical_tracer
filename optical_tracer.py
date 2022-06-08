@@ -203,10 +203,27 @@ class LayerCheckStrategy(BaseCheckStrategy):
         The way in which any Layers object's inputs should be checked
         Check kwarg types are ok
         """
-        kwargs['name'] = str(kwargs['name'])
-        if not all((isinstance(kwargs['boundary'], Callable),
-                   isinstance(kwargs['side'], Side))):
-            raise UnspecifiedFieldException
+        kwargs = self.validate_name(kwargs)
+        kwargs = self.validate_side(kwargs)
+        kwargs = self.validate_boundary(kwargs)
+        return kwargs
+
+    @staticmethod
+    def validate_name(kwargs):
+        if not isinstance(kwargs['name'], str):
+            raise UnspecifiedFieldException(f'Wrong inputs for Layer name. Given: {kwargs}')
+        return kwargs
+
+    @staticmethod
+    def validate_boundary(kwargs):
+        if not isinstance(kwargs['boundary'], Callable):
+            raise UnspecifiedFieldException(f'Wrong inputs for Layer boundary. Given: {kwargs}')
+        return kwargs
+
+    @staticmethod
+    def validate_side(kwargs):
+        if not isinstance(kwargs['side'], Side):
+            raise UnspecifiedFieldException(f'Wrong inputs for Layer side. Given: {kwargs}')
         return kwargs
 
 
