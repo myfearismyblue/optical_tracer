@@ -7,6 +7,13 @@ DEBUG = True
 CANVAS_WIDTH = 800
 CANVAS_HEIGHT = 600
 CANVAS_BACKGROUND_COLOR = 'white'
+TIME_REFRESH = 100 # ms
+
+# offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
+OPTICAL_SYSTEM_OFFSET = (+CANVAS_WIDTH//4, +3*CANVAS_HEIGHT//4)
+
+# ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET
+BOUNDARY_DRAW_RANGES = (OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT, OPTICAL_SYSTEM_OFFSET[1])
 
 def main():
     global root, canvas
@@ -20,12 +27,22 @@ def main():
 
     canvas.focus_set()
 
-    objects = init_objects()
-    canvas.bind('<Key>', lambda event: key_handler(event, *objects))
+    gr = Grapher(canvas=canvas, opt_system=objects[0])
+
+    canvas.bind('<Motion>', lambda event: key_handler(event, mouse_coords_text, *objects))
     canvas.pack(fill=tk.BOTH, expand=1)
     # tick(*objects)
     root.mainloop()
 
+def convert_tkcoords_to_optical(tk_absciss: int, tk_ordinate: int) -> Tuple[float, float]:
+    opt_absciss = tk_absciss - OPTICAL_SYSTEM_OFFSET[0]
+    opt_ordinate = OPTICAL_SYSTEM_OFFSET[1] - tk_ordinate
+    return opt_absciss, opt_ordinate
+
+def convert_opticalcoords_to_tkcoords(opt_absciss: int, opt_ordinate: int) -> Tuple[float, float]:
+    tk_absciss = opt_absciss + OPTICAL_SYSTEM_OFFSET[0]
+    tk_ordinate = OPTICAL_SYSTEM_OFFSET[1] - opt_ordinate
+    return tk_absciss, tk_ordinate
 
 def tick(*objects):
     root.after(TIME_REFRESH, *objects)
@@ -115,6 +132,49 @@ def init_objects():
         return opt_sys
     objects = (create_opt_sys(),)
     return objects
+
+
+class Grapher:
+    """Responsible for drawing and refreshing visualities on a canvas"""
+    def __init__(self, *, canvas, opt_system):
+        self._canvas = canvas
+        self._optical_system = opt_system
+        self._draw_initial_axes()
+        self._draw_components()
+
+    def _draw_initial_axes(self):
+        optical_axis_points = 0, \
+                              0 + OPTICAL_SYSTEM_OFFSET[1], \
+                              CANVAS_WIDTH, \
+                              OPTICAL_SYSTEM_OFFSET[1]
+
+        y_axis_points = OPTICAL_SYSTEM_OFFSET[0], \
+                        0, \
+                        OPTICAL_SYSTEM_OFFSET[0], \
+                        CANVAS_HEIGHT
+
+        self._canvas.create_line(*optical_axis_points, arrow=tk.LAST)
+        self._canvas.create_line(*y_axis_points, arrow=tk.FIRST)
+
+    def _draw_components(self):
+        """Draws components, it's boundaries, material etc."""
+        def _fetch_boundaries():
+            res = []
+            for comp in self._optical_system._components:
+                for l in comp._layers:
+                   res.append(l.boundary)
+            return res
+        boundaries = _fetch_boundaries()
+        for bound in boundaries:
+            self._draw_curve(bound)
+
+    def _draw_curve(self, boundary_func: Callable) -> None:
+        assert isinstance(boundary_func, Callable)
+        ys = range(BOUNDARY_DRAW_RANGES[0], BOUNDARY_DRAW_RANGES[1])
+        zs = (boundary_func(y) for y in ys)
+        points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
+        self._canvas.create_line(*points_to_draw)
+
 
 if __name__ == '__main__':
     main()
