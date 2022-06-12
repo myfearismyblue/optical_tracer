@@ -1,7 +1,7 @@
 import tkinter as tk
-from typing import Callable, Tuple
+from typing import Callable, Tuple, List
 
-from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side
+from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector
 
 DEBUG = True
 CANVAS_WIDTH = 800
@@ -84,8 +84,8 @@ def init_objects():
         """Creates an Optical System which is composed of three parallel layers and five optical media"""
 
         def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0, side=Side.RIGHT, name='First-left bound')
-            first_right_bound = Layer(boundary=lambda y: 10, side=Side.LEFT, name='First-right bound')
+            first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')
+            first_right_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
             first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
             first_medium = OpticalComponent(name='First')
             first_medium.add_layer(layer=first_left_bound)
@@ -94,8 +94,8 @@ def init_objects():
             return first_medium
 
         def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 10, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 20, side=Side.LEFT, name='Second-right bound')
+            second_left_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.RIGHT, name='Second-left bound')
+            second_right_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.LEFT, name='Second-right bound')
             second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
             second_medium = OpticalComponent(name='Second')
             second_medium.add_layer(layer=second_left_bound)
@@ -104,8 +104,8 @@ def init_objects():
             return second_medium
 
         def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 20, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 30, side=Side.LEFT, name='Third-right bound')
+            third_left_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.RIGHT, name='Third-left bound')
+            third_right_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.LEFT, name='Third-right bound')
             third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
             third_medium = OpticalComponent(name='Third')
             third_medium.add_layer(layer=third_left_bound)
@@ -114,7 +114,7 @@ def init_objects():
             return third_medium
 
         def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 30, side=Side.RIGHT, name='Fourth-left bound')
+            fourth_left_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.RIGHT, name='Fourth-left bound')
             fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
             fourth_medium = OpticalComponent(name='Fourth')
             fourth_medium.add_layer(layer=fourth_left_bound)
@@ -174,6 +174,17 @@ class Grapher:
         zs = (boundary_func(y) for y in ys)
         points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
         self._canvas.create_line(*points_to_draw)
+
+    def _draw_beams(self):
+        """Draws beam lines on a canvas"""
+        for b in self._optical_system._vectors.values():
+            assert isinstance(b, list)
+            self._draw_beam(b)
+
+    def _draw_beam(self, beam):
+        """Draws a single beam propagating throw optical system"""
+        pass
+
 
 
 if __name__ == '__main__':

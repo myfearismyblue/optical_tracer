@@ -663,7 +663,7 @@ class OpticalComponent:
     Intersection of layers which are to bound optical material
     """
 
-    def __init__(self, *, name: str, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS):
+    def __init__(self, *, name: str, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS) -> object:
         self._name: str = name
         self._layers: Optional[List[Layer]] = []
         self._material: Optional[Material] = None
@@ -1029,5 +1029,5 @@ def main():
     print(*opt_sys.trace(vector=v), sep='\n')
     # v.get_line_equation(repr=1)
 
-if __name__ == '__main__':
-    main()
+# if __name__ == '__main__':
+#     main()
