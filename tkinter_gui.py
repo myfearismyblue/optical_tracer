@@ -1,7 +1,8 @@
 import tkinter as tk
+from math import pi, tan
 from typing import Callable, Tuple, List
 
-from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector
+from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
 
 DEBUG = True
 CANVAS_WIDTH = 800
@@ -130,7 +131,11 @@ def init_objects():
                                                                     )
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
         return opt_sys
-    objects = (create_opt_sys(),)
+    opt_sys = create_opt_sys()
+    in_point = Point(x=0, y=100, z=2)
+    v = Vector(initial_point=in_point, lum=1, w_length=555, theta=3*pi/2, psi=0)
+    opt_sys.trace(vector=v)
+    objects = (opt_sys,)
     return objects
 
 
@@ -139,8 +144,12 @@ class Grapher:
     def __init__(self, *, canvas, opt_system):
         self._canvas = canvas
         self._optical_system = opt_system
+        self._refresh_canvas()
+
+    def _refresh_canvas(self):
         self._draw_initial_axes()
         self._draw_components()
+        self._draw_beams()
 
     def _draw_initial_axes(self):
         optical_axis_points = 0, \
@@ -166,14 +175,14 @@ class Grapher:
             return res
         boundaries = _fetch_boundaries()
         for bound in boundaries:
-            self._draw_curve(bound)
+            self._draw_layers_bounds(bound)
 
-    def _draw_curve(self, boundary_func: Callable) -> None:
+    def _draw_layers_bounds(self, boundary_func: Callable) -> None:
         assert isinstance(boundary_func, Callable)
         ys = range(BOUNDARY_DRAW_RANGES[0], BOUNDARY_DRAW_RANGES[1])
         zs = (boundary_func(y) for y in ys)
         points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
-        self._canvas.create_line(*points_to_draw)
+        self._canvas.create_line(*points_to_draw, smooth=True)
 
     def _draw_beams(self):
         """Draws beam lines on a canvas"""
@@ -183,7 +192,22 @@ class Grapher:
 
     def _draw_beam(self, beam):
         """Draws a single beam propagating throw optical system"""
-        pass
+        if DEBUG:
+            assert len(beam) >= 2, f"a single vector is not  supported"
+        zs, ys = ([] for _ in range(2))
+        [(zs.append(vector.initial_point.z), ys.append(vector.initial_point.y)) for vector in beam]
+        last_point_y = tan(beam[-1].theta) * CANVAS_WIDTH / 10 + beam[-1].initial_point.y
+        last_point_z = CANVAS_WIDTH / 10 + beam[-1].initial_point.z
+        zs.append(last_point_z)
+        ys.append(last_point_y)
+        points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
+        self._canvas.create_line(*points_to_draw, arrow='last', fill='blue')
+
+    @staticmethod
+    def _wavelength_to_rgb(wavelength, gamma=0.8):
+        ...
+
+
 
 
 
