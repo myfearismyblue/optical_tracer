@@ -10,6 +10,7 @@ CANVAS_HEIGHT = 600
 CANVAS_BACKGROUND_COLOR = 'white'
 TIME_REFRESH = 100 # ms
 SCALE = 1 # mm/px
+WHEEL_ZOOM_RATIO = 1.1      # while zooming with mouse wheel
 
 # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
 OPTICAL_SYSTEM_OFFSET = (+1*CANVAS_WIDTH//2, +1*CANVAS_HEIGHT//2)     # in pixels here
@@ -19,18 +20,19 @@ BOUNDARY_DRAW_RANGES = ((OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT), OPTICAL_SYST
 
 def main():
     global root, canvas
-    objects = init_objects()
+    model_objects = init_model_objects()
 
     root = tk.Tk()
     root.geometry(str(CANVAS_WIDTH) + 'x' + str(CANVAS_HEIGHT))
     canvas = tk.Canvas(root, background=CANVAS_BACKGROUND_COLOR)
-    mouse_coords_text = canvas.create_text(2, 2, text=f'', font='28', justify='left', anchor='nw')
+    mouse_coords_text = canvas.create_text(2, 2, text=f'', font='28', justify='left', anchor='nw', tags='upper_coords')
 
     canvas.focus_set()
 
-    gr = Grapher(canvas=canvas, opt_system=objects[0])
+    view_obj = (Grapher(canvas=canvas, opt_system=model_objects[0]),)
 
-    canvas.bind('<Motion>', lambda event: key_handler(event, mouse_coords_text, *objects))
+    canvas.bind('<Motion>', lambda event: key_handler(event, *view_obj))
+    canvas.bind('<MouseWheel>', lambda event: key_handler(event, *view_obj))
     canvas.pack(fill=tk.BOTH, expand=1)
     # tick(*objects)
     root.mainloop()
@@ -55,7 +57,9 @@ def tick(*objects):
     root.after(TIME_REFRESH, *objects)
 
 
-def key_handler(event, mouse_coords, *objects):
+def key_handler(event, *view_obj):
+    gr = view_obj[0]
+    mouse_coords = gr._canvas.find_withtag('upper_coords')
     if str(event.type) == 'KeyPress':
         if event.keysym == 'space':
             ...
@@ -79,14 +83,15 @@ def key_handler(event, mouse_coords, *objects):
         opt_abs, opt_ord = convert_tkcoords_to_optical(event.x, event.y, scale=SCALE)
         canvas.itemconfig(mouse_coords, text=f'y: {opt_ord}, mm, z: {opt_abs}, mm')
 
-    elif str(event.type) == 'MouseWheel':
+    elif str(event.type) in ['MouseWheel', '38']:
         if event.delta >= 0:
-            ...
+            gr._scale *= WHEEL_ZOOM_RATIO
         else:
-            ...
+            gr._scale /= WHEEL_ZOOM_RATIO
+        gr._refresh_canvas()
 
 
-def init_objects():
+def init_model_objects():
     def create_opt_sys():
         """Creates an Optical System which is composed of three parallel layers and five optical media"""
 
@@ -139,11 +144,11 @@ def init_objects():
         return opt_sys
     opt_sys = create_opt_sys()
     in_point = Point(x=0, y=100, z=2)
-    vs = (Vector(initial_point=in_point, lum=1, w_length=555, theta=t/10, psi=0) for t in range(0, (int(2*pi)*10)))
+    vs = (Vector(initial_point=in_point, lum=1, w_length=555, theta=t/20, psi=0) for t in range(0, (int(2*pi)*20)))
 
     for v in vs:
-        if v.theta == 0.7:
-            opt_sys.trace(vector=v)
+        # if v.theta == 0.65:
+        opt_sys.trace(vector=v)
     objects = (opt_sys,)
     print('')
     return objects
@@ -158,6 +163,7 @@ class Grapher:
         self._refresh_canvas()
 
     def _refresh_canvas(self):
+        self._canvas.delete("all")
         self._draw_initial_axes()
         self._draw_components()
         self._draw_beams()
