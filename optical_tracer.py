@@ -12,7 +12,7 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 import numpy as np
 
-DEBUG = 1
+DEBUG = True
 OPT_SYS_DIMENSIONS = (-100, 100)
 OPTICAL_RANGE = (380, 780)  # in nanometers
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
@@ -582,18 +582,44 @@ class Layer(ICheckable):
                 return False
             return True
 
-        def _is_directed_to_boundary():
+        def _is_vector_directed_intersection():
             # check if vector is directed to the intersection
-            normal_angle = self.get_normal_angle(point=intersection_point)
-            vector_directed_left = (-pi / 2 + normal_angle) % (2*pi) <= vector.theta <= (pi / 2 + normal_angle) % (2*pi)
-            material_at_left = self.side == Side.LEFT
-            if material_at_left == vector_directed_left:         # Ture == True or False == False
-                if DEBUG:
-                    warn(f'\nSurface "{self.name}" is out of vectors direction: '
-                         f'theta={vector.theta:.3f}, '
-                         f'intersection at (y,z)=({current_y:.3f}, {surface(current_y):.3f})', NoIntersectionWarning)
-                return False
-            return True
+            current_z = intersection_point.z
+            vector_z = vector.initial_point.z
+            vector_y = vector.initial_point.y
+
+            intersection_quadrant :int  # the quadrant where intersection is located relatively to vector
+            if vector_y - current_y>= 0 and vector_z - current_z >= 0:
+                intersection_quadrant = 3
+            elif vector_y - current_y < 0 and vector_z - current_z > 0:
+                intersection_quadrant = 2
+            elif vector_y - current_y>= 0 and vector_z - current_z < 0:
+                intersection_quadrant = 4
+            elif vector_y - current_y < 0 and vector_z - current_z <= 0:
+                intersection_quadrant = 1
+            else:
+                assert True, f'Something wrong with intersection quadrants'
+
+            vector_directed_quadrant: int  # the quadrant vector directed to
+            if pi <= vector.theta <= 3*pi/2:
+                vector_directed_quadrant = 3
+            elif 3*pi/2 < vector.theta < 2*pi:
+                vector_directed_quadrant = 4
+            elif pi/2 <= vector.theta < pi:
+                vector_directed_quadrant = 2
+            elif 0 <= vector.theta < pi/2:
+                vector_directed_quadrant = 1
+            else:
+                assert True, f'Something wrong with vectors direction quadrants'
+
+            if intersection_quadrant == vector_directed_quadrant:
+                return True
+            if DEBUG:
+                warn(f'\nSurface "{self.name}" is out of vectors direction: '
+                     f'theta={vector.theta:.3f}, '
+                     f'intersection at (y,z)=({current_y:.3f}, {surface(current_y):.3f})', NoIntersectionWarning)
+            return False
+
 
         approved_ys = []
         for current_y in probable_ys:
@@ -604,7 +630,7 @@ class Layer(ICheckable):
                 continue
             if not _is_in_medium():
                 continue
-            if not _is_directed_to_boundary():
+            if not _is_vector_directed_intersection():
                 continue
             approved_ys.append(current_y)
         return approved_ys

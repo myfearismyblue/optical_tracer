@@ -1,20 +1,21 @@
 import tkinter as tk
-from math import pi, tan
+from math import pi, tan, sin
 from typing import Callable, Tuple, List
 
 from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
 
-DEBUG = True
+DEBUG = False
 CANVAS_WIDTH = 800
 CANVAS_HEIGHT = 600
 CANVAS_BACKGROUND_COLOR = 'white'
 TIME_REFRESH = 100 # ms
+SCALE = 1 # mm/px
 
 # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
-OPTICAL_SYSTEM_OFFSET = (+CANVAS_WIDTH//4, +3*CANVAS_HEIGHT//4)
+OPTICAL_SYSTEM_OFFSET = (+1*CANVAS_WIDTH//2, +1*CANVAS_HEIGHT//2)     # in pixels here
 
 # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET
-BOUNDARY_DRAW_RANGES = (OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT, OPTICAL_SYSTEM_OFFSET[1])
+BOUNDARY_DRAW_RANGES = ((OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT), OPTICAL_SYSTEM_OFFSET[1])
 
 def main():
     global root, canvas
@@ -23,8 +24,7 @@ def main():
     root = tk.Tk()
     root.geometry(str(CANVAS_WIDTH) + 'x' + str(CANVAS_HEIGHT))
     canvas = tk.Canvas(root, background=CANVAS_BACKGROUND_COLOR)
-    if DEBUG:
-        mouse_coords_text = canvas.create_text(50, 10, text=f'', font='28')
+    mouse_coords_text = canvas.create_text(2, 2, text=f'', font='28', justify='left', anchor='nw')
 
     canvas.focus_set()
 
@@ -35,14 +35,20 @@ def main():
     # tick(*objects)
     root.mainloop()
 
-def convert_tkcoords_to_optical(tk_absciss: int, tk_ordinate: int) -> Tuple[float, float]:
-    opt_absciss = tk_absciss - OPTICAL_SYSTEM_OFFSET[0]
-    opt_ordinate = OPTICAL_SYSTEM_OFFSET[1] - tk_ordinate
+def convert_tkcoords_to_optical(tk_absciss: int, tk_ordinate: int, *, scale: float) -> Tuple[float, float]:
+    """ Returns real coordinates in mm
+    scale - in pixels per mm
+    """
+    opt_absciss = (tk_absciss - OPTICAL_SYSTEM_OFFSET[0]) / scale
+    opt_ordinate = (OPTICAL_SYSTEM_OFFSET[1] - tk_ordinate) / scale
     return opt_absciss, opt_ordinate
 
-def convert_opticalcoords_to_tkcoords(opt_absciss: int, opt_ordinate: int) -> Tuple[float, float]:
-    tk_absciss = opt_absciss + OPTICAL_SYSTEM_OFFSET[0]
-    tk_ordinate = OPTICAL_SYSTEM_OFFSET[1] - opt_ordinate
+def convert_opticalcoords_to_tkcoords(opt_absciss: int, opt_ordinate: int, *, scale: float) -> Tuple[float, float]:
+    """ Returns coordinates oncanvas
+        scale - in pixels per mm
+        """
+    tk_absciss = opt_absciss * scale + OPTICAL_SYSTEM_OFFSET[0]
+    tk_ordinate = OPTICAL_SYSTEM_OFFSET[1] - opt_ordinate * scale
     return tk_absciss, tk_ordinate
 
 def tick(*objects):
@@ -70,8 +76,8 @@ def key_handler(event, mouse_coords, *objects):
             ...
 
     elif str(event.type) in ['Motion', '6']:
-        opt_abs, opt_ord = convert_tkcoords_to_optical(event.x, event.y)
-        canvas.itemconfig(mouse_coords, text=f'y: {opt_ord}, z: {opt_abs}')
+        opt_abs, opt_ord = convert_tkcoords_to_optical(event.x, event.y, scale=SCALE)
+        canvas.itemconfig(mouse_coords, text=f'y: {opt_ord}, mm, z: {opt_abs}, mm')
 
     elif str(event.type) == 'MouseWheel':
         if event.delta >= 0:
@@ -133,9 +139,13 @@ def init_objects():
         return opt_sys
     opt_sys = create_opt_sys()
     in_point = Point(x=0, y=100, z=2)
-    v = Vector(initial_point=in_point, lum=1, w_length=555, theta=3*pi/2, psi=0)
-    opt_sys.trace(vector=v)
+    vs = (Vector(initial_point=in_point, lum=1, w_length=555, theta=t/10, psi=0) for t in range(0, (int(2*pi)*10)))
+
+    for v in vs:
+        if v.theta == 0.7:
+            opt_sys.trace(vector=v)
     objects = (opt_sys,)
+    print('')
     return objects
 
 
@@ -144,6 +154,7 @@ class Grapher:
     def __init__(self, *, canvas, opt_system):
         self._canvas = canvas
         self._optical_system = opt_system
+        self._scale = SCALE
         self._refresh_canvas()
 
     def _refresh_canvas(self):
@@ -179,9 +190,9 @@ class Grapher:
 
     def _draw_layers_bounds(self, boundary_func: Callable) -> None:
         assert isinstance(boundary_func, Callable)
-        ys = range(BOUNDARY_DRAW_RANGES[0], BOUNDARY_DRAW_RANGES[1])
-        zs = (boundary_func(y) for y in ys)
-        points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
+        ys_in_mm = (el * self._scale for el in range(BOUNDARY_DRAW_RANGES[0], BOUNDARY_DRAW_RANGES[1]))
+        zs_in_mm = (boundary_func(y) for y in ys_in_mm)
+        points_to_draw = list(convert_opticalcoords_to_tkcoords(z, y, scale=self._scale) for z, y in zip(zs_in_mm, ys_in_mm))
         self._canvas.create_line(*points_to_draw, smooth=True)
 
     def _draw_beams(self):
@@ -192,16 +203,26 @@ class Grapher:
 
     def _draw_beam(self, beam):
         """Draws a single beam propagating throw optical system"""
-        if DEBUG:
-            assert len(beam) >= 2, f"a single vector is not  supported"
-        zs, ys = ([] for _ in range(2))
-        [(zs.append(vector.initial_point.z), ys.append(vector.initial_point.y)) for vector in beam]
-        last_point_y = tan(beam[-1].theta) * CANVAS_WIDTH / 10 + beam[-1].initial_point.y
-        last_point_z = CANVAS_WIDTH / 10 + beam[-1].initial_point.z
-        zs.append(last_point_z)
-        ys.append(last_point_y)
-        points_to_draw = (convert_opticalcoords_to_tkcoords(z, y) for z, y in zip(zs, ys))
-        self._canvas.create_line(*points_to_draw, arrow='last', fill='blue')
+        zs_in_mm, ys_in_mm, ts = ([] for _ in range(3))
+        [(zs_in_mm.append(vector.initial_point.z), ys_in_mm.append(vector.initial_point.y), ts.append(vector.theta)) for vector in beam]
+        last_point_y = beam[-1].initial_point.y
+        last_point_z = beam[-1].initial_point.z
+        zs_in_mm.append(last_point_z)
+        ys_in_mm.append(last_point_y)
+        ts.append(ts[-1])
+        # points_mm = list(zip(zs_in_mm, ys_in_mm))
+        points_to_draw = [convert_opticalcoords_to_tkcoords(z, y, scale=self._scale) for z, y in zip(zs_in_mm, ys_in_mm)]
+        self._canvas.create_line(points_to_draw, arrow='last', fill='blue')
+        # if len(points_to_draw)>=2:
+        #     self._canvas.create_text(points_to_draw[1], text=f'{ts[1]}', font='28', justify='left', anchor='nw')
+        def create_point(x, y, canvas, r=2):
+            python_green = "#476042"
+            x1, y1 = (x - r), (y - r)
+            x2, y2 = (x + r), (y + r)
+            canvas.create_oval(x1, y1, x2, y2, fill=python_green)
+        [create_point(*point, self._canvas) for point in points_to_draw]
+        # for i in range(len(points_to_draw)):
+        self._canvas.create_text(*points_to_draw[-1], text=f' {ts[0]:.2f}', font='28', justify='left', anchor='nw')
 
     @staticmethod
     def _wavelength_to_rgb(wavelength, gamma=0.8):
