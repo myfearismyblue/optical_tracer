@@ -13,10 +13,10 @@ SCALE = 1 # mm/px
 WHEEL_ZOOM_RATIO = 1.1      # while zooming with mouse wheel
 
 # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
-OPTICAL_SYSTEM_OFFSET = (+1*CANVAS_WIDTH//2, +1*CANVAS_HEIGHT//2)     # in pixels here
+OPTICAL_SYSTEM_OFFSET = (+1*CANVAS_WIDTH//3, +1*CANVAS_HEIGHT//3)     # in pixels here
 
-# ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET
-BOUNDARY_DRAW_RANGES = ((OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT), OPTICAL_SYSTEM_OFFSET[1])
+# ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixeles here
+BOUNDARY_DRAW_RANGES = (-OPTICAL_SYSTEM_OFFSET[1], (CANVAS_HEIGHT - OPTICAL_SYSTEM_OFFSET[1]))
 
 def main():
     global root, canvas
