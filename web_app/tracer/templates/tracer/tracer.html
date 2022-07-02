@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Optical Tracer</title>
+
+</head>
+<body>
+{% load l10n %}         <!-- to change decimal divider from , to .-->
+
+{% for l in lines %}
+    <style>
+        .line#id_{{ l.pk }}{
+        width: {{ l.length }}px;
+        height: 0px;
+        border-bottom: 1px solid #f00;
+        transform-origin: 0% 0%;
+        transform: translate({{ l.transition_absciss }}px,{{ l.transition_ordinate }}px) rotate({{ l.angle|unlocalize }}rad);
+        }
+      </style>
+    <div class="line" id="id_{{l.pk}}"></div>
+{%endfor%}
+</body>
+</html>
