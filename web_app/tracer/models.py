@@ -2,10 +2,10 @@ from django.db import models
 
 
 class Line(models.Model):
-    length = models.IntegerField()
-    angle = models.FloatField()
-    transition_absciss = models.IntegerField()
-    transition_ordinate = models.IntegerField()
+    length = models.IntegerField(verbose_name='Длина')
+    angle = models.FloatField(verbose_name='Угол')
+    transition_absciss = models.IntegerField(verbose_name='Абсцисса смещения')
+    transition_ordinate = models.IntegerField(verbose_name='Ордината смещения')
 
 
     def __str__(self):
