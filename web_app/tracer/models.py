@@ -26,6 +26,22 @@ class Line(models.Model):
         ordering = ['pk']
 
 
+class Point(models.Model):
+    x0 = models.IntegerField(verbose_name='x0')
+    y0 = models.IntegerField(verbose_name='y0')
+
+
+    def __str__(self):
+        return f'Точкa : {(self.x0, self.y0)}'
+
+
+
+    class Meta:
+        verbose_name = 'Точка'
+        verbose_name_plural = 'Точки'
+        ordering = ['pk']
+
+
 class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibilities
     CANVAS_WIDTH = 800
     CANVAS_HEIGHT = 600
@@ -98,25 +114,23 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
     def do_test(cls):
         """Temporary func for debugging """
         lineDBAppender = LineDBAppender(LineDBAppender._init_optical_system())
-        lines = cls.fetch_optical_components_lines()
-        for l in lines:
-            cls.transform_and_append_line_to_db(l)
+        points = cls.fetch_optical_components_points()
+        for p in points:
+            cls.append_point_to_db(p)
 
     @classmethod
-    def transform_and_append_line_to_db(cls, line: Tuple[int, int, int, int]) -> None:
-        """Gets a line (tuple of x0, y0, x1, y1), prepares it for Line model and creates an object"""
-        assert len(line) == 4, f'Wrong line format: {line}'
-        assert all((isinstance(coord, int) for coord in line)), f'Coords of line must be integers, '\
-                                                                f'but was given {[type(coord) for coord in line]}'
-        line_for_model = line   # cls._transform_line_representation(*line)
-        Line.objects.create(x0=line_for_model[0], y0=line_for_model[1],
-                            x1=line_for_model[2], y1=line_for_model[3])
+    def append_point_to_db(cls, point: Tuple[int, int]) -> None:
+        """Gets a point (tuple of x0, y0), checks and creates an object"""
+        assert len(point) == 2, f'Wrong line format: {point}'
+        assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, '\
+                                                                 f'but was given {[type(coord) for coord in point]}'
+        Point.objects.create(x0=point[0], y0=point[1])
 
     @classmethod
-    def fetch_optical_components_lines(cls) -> List[Tuple[int, int, int, int]]:
+    def fetch_optical_components_points(cls) -> List[Tuple[int, int]]:
         """
         Retrieves points of components to draw from optical system.
-        return: list of lines, represented by tuples of (x0, y0, x1, y1)). Coordinates are in pixels
+        return: list of points, represented by tuples of (x0, y0)). Coordinates are in pixels
         """
 
         def _fetch_boundaries() -> List[Callable]:
@@ -127,7 +141,7 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
                     res.append(l.boundary)
             return res
 
-        def _calculate_lines_of_boundary_to_draw(boundary_func: Callable) -> List[Tuple[int, int, int, int]]:
+        def _calculate_lines_of_boundary_to_draw(boundary_func: Callable) -> List[Tuple[int, int]]:
             """Gets a callable func of a boundary and calculates lines which the boundary is consisted of"""
             assert isinstance(boundary_func, Callable), f'Wrong call: {boundary_func}'
             ys_in_mm = (el * cls.SCALE for el in range(cls.BOUNDARY_DRAW_RANGES[0], cls.BOUNDARY_DRAW_RANGES[1], 5))
@@ -136,20 +150,16 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
                                                                     absciss_offset=cls.OPTICAL_SYSTEM_OFFSET[0],
                                                                     ordinate_offset=cls.OPTICAL_SYSTEM_OFFSET[1])
                           for z, y in zip(zs_in_mm, ys_in_mm))
-
-            lines = []
-            for idx, point in enumerate(points):
-                if idx < len(points) - 1:
-                    lines.append((points[idx] + points[idx + 1]))
-            return lines
+            return points
 
 
         boundaries = _fetch_boundaries()
-        all_lines_together = []
-        for boundary in boundaries:
-            current_lines = _calculate_lines_of_boundary_to_draw(boundary)
-            all_lines_together.extend(current_lines)
-            print(f'Lines added: {len(current_lines)}')
+        all_lines_together = _calculate_lines_of_boundary_to_draw(boundaries[0])
+
+        # for boundary in boundaries:
+        #     current_lines = _calculate_lines_of_boundary_to_draw(boundary)
+        #     all_lines_together.extend(current_lines)
+        #     print(f'Lines added: {len(current_lines)}')
         return all_lines_together
 
     @classmethod
@@ -163,7 +173,6 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
         canvas_abscissa = int(opt_absciss * scale + absciss_offset)
         canvas_ordinate = int(ordinate_offset - opt_ordinate * scale)   # minus because of canvas ordinate directed down
         return canvas_abscissa, canvas_ordinate
-
 
 
     @staticmethod
