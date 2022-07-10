@@ -5,6 +5,8 @@ from .models import Line, LineDBAppender
 
 
 def index(request):
-    lines = Line.objects.all()
     LineDBAppender.do_test()
-    return render(request, 'tracer/tracer.html', {'lines': lines})
+    lines = Line.objects.all()
+    return render(request, 'tracer/tracer.html', {'lines': lines,
+                                                  'canvas_width': LineDBAppender.CANVAS_WIDTH,
+                                                  'canvas_height': LineDBAppender.CANVAS_HEIGHT})

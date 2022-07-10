@@ -12,14 +12,13 @@ from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSyste
 
 
 class Line(models.Model):
-    length = models.IntegerField(verbose_name='Длина')
-    angle = models.FloatField(verbose_name='Угол')
-    transition_absciss = models.IntegerField(verbose_name='Абсцисса смещения')
-    transition_ordinate = models.IntegerField(verbose_name='Ордината смещения')
+    x0 = models.IntegerField(verbose_name='x0')
+    y0 = models.IntegerField(verbose_name='y0')
+    x1 = models.IntegerField(verbose_name='x1')
+    y1 = models.IntegerField(verbose_name='y1')
 
     def __str__(self):
-        return f'Линия: длина {self.length}, поворот {self.angle}rad, ' \
-               f'смещение {self.transition_absciss, self.transition_ordinate}'
+        return f'Линия: Точка 1: {(self.x0, self.y0)}, Точка 2: {(self.x1, self.y1)}'
 
     class Meta:
         verbose_name = 'Линия'
@@ -48,8 +47,8 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
         """Creates an Optical System which is composed of three parallel layers and five optical media"""
 
         def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0, side=Side.RIGHT, name='First-left bound')    #  + y ** 2 / 300
-            first_right_bound = Layer(boundary=lambda y: 10, side=Side.LEFT, name='First-right bound')
+            first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')    #
+            first_right_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
             first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
             first_medium = OpticalComponent(name='First')
             first_medium.add_layer(layer=first_left_bound)
@@ -58,8 +57,8 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
             return first_medium
 
         def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 10, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 20, side=Side.LEFT, name='Second-right bound')
+            second_left_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.RIGHT, name='Second-left bound')
+            second_right_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.LEFT, name='Second-right bound')
             second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
             second_medium = OpticalComponent(name='Second')
             second_medium.add_layer(layer=second_left_bound)
@@ -68,8 +67,8 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
             return second_medium
 
         def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 20, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 30, side=Side.LEFT, name='Third-right bound')
+            third_left_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.RIGHT, name='Third-left bound')
+            third_right_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.LEFT, name='Third-right bound')
             third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
             third_medium = OpticalComponent(name='Third')
             third_medium.add_layer(layer=third_left_bound)
@@ -78,7 +77,7 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
             return third_medium
 
         def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 30, side=Side.RIGHT, name='Fourth-left bound')
+            fourth_left_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.RIGHT, name='Fourth-left bound')
             fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
             fourth_medium = OpticalComponent(name='Fourth')
             fourth_medium.add_layer(layer=fourth_left_bound)
@@ -97,7 +96,7 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
 
     @classmethod
     def do_test(cls):
-        """Temporary func for debuggong """
+        """Temporary func for debugging """
         lineDBAppender = LineDBAppender(LineDBAppender._init_optical_system())
         lines = cls.fetch_optical_components_lines()
         for l in lines:
@@ -109,9 +108,9 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
         assert len(line) == 4, f'Wrong line format: {line}'
         assert all((isinstance(coord, int) for coord in line)), f'Coords of line must be integers, '\
                                                                 f'but was given {[type(coord) for coord in line]}'
-        line_for_model = cls._transform_line_representation(*line)
-        Line.objects.create(transition_absciss=line_for_model[0], transition_ordinate=line_for_model[1],
-                            angle=line_for_model[2], length=line_for_model[3])
+        line_for_model = line   # cls._transform_line_representation(*line)
+        Line.objects.create(x0=line_for_model[0], y0=line_for_model[1],
+                            x1=line_for_model[2], y1=line_for_model[3])
 
     @classmethod
     def fetch_optical_components_lines(cls) -> List[Tuple[int, int, int, int]]:
@@ -131,7 +130,7 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
         def _calculate_lines_of_boundary_to_draw(boundary_func: Callable) -> List[Tuple[int, int, int, int]]:
             """Gets a callable func of a boundary and calculates lines which the boundary is consisted of"""
             assert isinstance(boundary_func, Callable), f'Wrong call: {boundary_func}'
-            ys_in_mm = (el * cls.SCALE for el in range(cls.BOUNDARY_DRAW_RANGES[0], cls.BOUNDARY_DRAW_RANGES[1], 50))
+            ys_in_mm = (el * cls.SCALE for el in range(cls.BOUNDARY_DRAW_RANGES[0], cls.BOUNDARY_DRAW_RANGES[1], 5))
             zs_in_mm = (boundary_func(y) for y in ys_in_mm)
             points = list(cls.convert_opticalcoords_to_canvascoords(z, y, scale=cls.SCALE,
                                                                     absciss_offset=cls.OPTICAL_SYSTEM_OFFSET[0],

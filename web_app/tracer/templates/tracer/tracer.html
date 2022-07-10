@@ -7,18 +7,10 @@
 </head>
 <body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
-
-{% for l in lines %}
-    <style>
-        .line#id_{{ l.pk }}{
-        width: {{ l.length }}px;
-        height: 0px;
-        border-bottom: 1px solid #f00;
-        transform-origin: 0% 0%;
-        transform: translate({{ l.transition_absciss }}px,{{ l.transition_ordinate }}px) rotate({{ l.angle|unlocalize }}rad);
-        }
-      </style>
-    <div class="line" id="id_{{l.pk}}"></div>
-{%endfor%}
+<svg width="{{canvas_width}}" height="{{canvas_height}}">
+    {% for l in lines %}
+        <line x1="{{l.x0}}" y1="{{l.y0}}" x2="{{l.x1}}" y2="{{l.y1}}" stroke="black" />
+    {%endfor%}
+</svg>
 </body>
 </html>
