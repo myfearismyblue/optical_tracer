@@ -8,9 +8,9 @@
 <body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
 <svg width="{{canvas_width}}" height="{{canvas_height}}">
-
-        <polyline points="{{polyline_points}}" stroke="black" fill="none"/>
-
+    {% for line, points in lines_points.items %}
+        <polyline points="{{points}}" stroke="black" fill="none"/>
+    {% endfor %}
 </svg>
 </body>
 </html>

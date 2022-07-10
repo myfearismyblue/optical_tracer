@@ -12,29 +12,26 @@ from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSyste
 
 
 class Line(models.Model):
-    x0 = models.IntegerField(verbose_name='x0')
-    y0 = models.IntegerField(verbose_name='y0')
-    x1 = models.IntegerField(verbose_name='x1')
-    y1 = models.IntegerField(verbose_name='y1')
+    name = models.CharField(max_length=50, verbose_name='Имя')
+    side = models.CharField(max_length=10, verbose_name='Сторона')
+    memory_id = models.BigIntegerField()
 
     def __str__(self):
-        return f'Линия: Точка 1: {(self.x0, self.y0)}, Точка 2: {(self.x1, self.y1)}'
+        return f'Граница {self.name}, сторона: {self.side}, адресс в памяти: {self.memory_id}'
 
     class Meta:
-        verbose_name = 'Линия'
-        verbose_name_plural = 'Линии'
+        verbose_name = 'Граница'
+        verbose_name_plural = 'Границы'
         ordering = ['pk']
 
 
 class Point(models.Model):
     x0 = models.IntegerField(verbose_name='x0')
     y0 = models.IntegerField(verbose_name='y0')
-
+    line = models.ForeignKey(Line, on_delete=models.CASCADE)
 
     def __str__(self):
         return f'Точкa : {(self.x0, self.y0)}'
-
-
 
     class Meta:
         verbose_name = 'Точка'
@@ -42,12 +39,12 @@ class Point(models.Model):
         ordering = ['pk']
 
 
-class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibilities
+class PointsDBAppender:  # FIXME: looks like a godclass. split it with responsibilities
     CANVAS_WIDTH = 800
     CANVAS_HEIGHT = 600
     SCALE = 1  # mm/px
     # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
-    OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
+    OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 2)  # in pixels here
 
     # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
     # coordinates are upside-down because of reversion of vertical axis
@@ -63,7 +60,7 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
         """Creates an Optical System which is composed of three parallel layers and five optical media"""
 
         def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')    #
+            first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')  #
             first_right_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
             first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
             first_medium = OpticalComponent(name='First')
@@ -113,35 +110,47 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
     @classmethod
     def do_test(cls):
         """Temporary func for debugging """
-        lineDBAppender = LineDBAppender(LineDBAppender._init_optical_system())
-        points = cls.fetch_optical_components_points()
-        for p in points:
-            cls.append_point_to_db(p)
+        Line.objects.all().delete()
+        PointsDBAppender(PointsDBAppender._init_optical_system())  # instantiate here opt system
+
+        layers = cls.fetch_optical_components_layers()
+        for layer in layers:
+            model_layer = cls.append_layer_to_db(layer)
+            points = cls.fetch_layer_points(layer)
+            for p in points:
+                cls.append_point_to_db(p, model_layer)
 
     @classmethod
-    def append_point_to_db(cls, point: Tuple[int, int]) -> None:
-        """Gets a point (tuple of x0, y0), checks and creates an object"""
-        assert len(point) == 2, f'Wrong line format: {point}'
-        assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, '\
-                                                                 f'but was given {[type(coord) for coord in point]}'
-        Point.objects.create(x0=point[0], y0=point[1])
+    def append_layer_to_db(cls, layer):
+        model_layer = Line(name=layer.name, side=layer.side, memory_id=id(layer.boundary))
+        model_layer.save()
+        return model_layer
 
     @classmethod
-    def fetch_optical_components_points(cls) -> List[Tuple[int, int]]:
+    def append_point_to_db(cls, point: Tuple[int, int], model_layer) -> None:
+        """Gets a point (tuple of x0, y0) and an instance of a model of layer on boundary of which point is located.
+        Checks and creates an object
         """
-        Retrieves points of components to draw from optical system.
+        assert len(point) == 2, f'Wrong line format: {point}'
+        assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, ' \
+                                                                 f'but was given {[type(coord) for coord in point]}'
+        Point.objects.create(x0=point[0], y0=point[1], line=model_layer)
+
+    @classmethod
+    def fetch_optical_components_layers(cls) -> List[Layer]:
+        res = []
+        for comp in cls._optical_system._components:
+            [res.append(l) for l in comp._layers]
+        return res
+
+    @classmethod
+    def fetch_layer_points(cls, layer: Layer) -> List[Tuple[int, int]]:
+        """
+        Retrieves points of a given layer to draw from optical system.
         return: list of points, represented by tuples of (x0, y0)). Coordinates are in pixels
         """
 
-        def _fetch_boundaries() -> List[Callable]:
-            """Returns all boundaries of all layers in a whole optical system as a list of callables"""
-            res = []
-            for comp in cls._optical_system._components:
-                for l in comp._layers:
-                    res.append(l.boundary)
-            return res
-
-        def _calculate_lines_of_boundary_to_draw(boundary_func: Callable) -> List[Tuple[int, int]]:
+        def _calculate_points_of_boundary_to_draw(boundary_func: Callable) -> List[Tuple[int, int]]:
             """Gets a callable func of a boundary and calculates lines which the boundary is consisted of"""
             assert isinstance(boundary_func, Callable), f'Wrong call: {boundary_func}'
             ys_in_mm = (el * cls.SCALE for el in range(cls.BOUNDARY_DRAW_RANGES[0], cls.BOUNDARY_DRAW_RANGES[1], 5))
@@ -152,28 +161,29 @@ class LineDBAppender:  # FIXME: looks like a godclass. split it with responsibil
                           for z, y in zip(zs_in_mm, ys_in_mm))
             return points
 
+        boundary_points = _calculate_points_of_boundary_to_draw(layer.boundary)
+        return boundary_points
 
-        boundaries = _fetch_boundaries()
-        all_lines_together = _calculate_lines_of_boundary_to_draw(boundaries[0])
-
-        # for boundary in boundaries:
-        #     current_lines = _calculate_lines_of_boundary_to_draw(boundary)
-        #     all_lines_together.extend(current_lines)
-        #     print(f'Lines added: {len(current_lines)}')
-        return all_lines_together
+    @classmethod
+    def _fetch_boundaries(cls) -> List[Callable]:
+        """Returns all boundaries of all layers in a whole optical system as a list of callables"""
+        res = []
+        for comp in cls._optical_system._components:
+            for l in comp._layers:
+                res.append(l.boundary)
+        return res
 
     @classmethod
     def convert_opticalcoords_to_canvascoords(cls, opt_absciss: float, opt_ordinate: float, scale: float = SCALE,
-                                              absciss_offset: int =OPTICAL_SYSTEM_OFFSET[0],
-                                              ordinate_offset: int =OPTICAL_SYSTEM_OFFSET[1]) -> Tuple[int, int]:
+                                              absciss_offset: int = OPTICAL_SYSTEM_OFFSET[0],
+                                              ordinate_offset: int = OPTICAL_SYSTEM_OFFSET[1]) -> Tuple[int, int]:
         """ Maps optical coords in mm (opt_absciss, opt_ordinate) to a canvas coords in pix
             scale - in pixels per mm
             returns: tuple of canvas (abscissa, ordinate)
         """
         canvas_abscissa = int(opt_absciss * scale + absciss_offset)
-        canvas_ordinate = int(ordinate_offset - opt_ordinate * scale)   # minus because of canvas ordinate directed down
+        canvas_ordinate = int(ordinate_offset - opt_ordinate * scale)  # minus because of canvas ordinate directed down
         return canvas_abscissa, canvas_ordinate
-
 
     @staticmethod
     def _transform_line_representation(x0: int, y0: int, x1: int, y1: int) -> Tuple[int, int, float, int]:
