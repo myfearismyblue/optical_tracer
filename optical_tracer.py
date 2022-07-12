@@ -440,6 +440,10 @@ class Side(Enum):
     RIGHT = auto()
     LEFT = auto()
 
+    def __str__(self):
+        """Returns only the last word: LEFT or RIGHT"""
+        return super().__str__().split('.')[-1]
+
 
 def reversed_side(side: Side) -> Side:
     assert isinstance(side, Side)
