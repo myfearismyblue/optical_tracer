@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Line, Point
+from .models import Axis, Boundary, Point
 
 
 class LineAdmin(admin.ModelAdmin):
@@ -8,8 +8,13 @@ class LineAdmin(admin.ModelAdmin):
 
 
 class PointAdmin(admin.ModelAdmin):
-    list_display = ['pk', 'x0', 'y0', 'id']
+    list_display = ['pk', 'x0', 'y0', 'line','id']
 
 
-admin.site.register(Line, LineAdmin)
-admin.site.register( Point, PointAdmin)
+class AxisAdmin(admin.ModelAdmin):
+    list_display = ['pk','name','direction' ,'x0', 'y0', 'x1', 'y1']
+
+
+admin.site.register(Boundary, LineAdmin)
+admin.site.register(Point, PointAdmin)
+admin.site.register(Axis, AxisAdmin)

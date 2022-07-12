@@ -39,7 +39,21 @@ class Point(models.Model):
         ordering = ['pk']
 
 
-class PointsDBAppender:  # FIXME: looks like a godclass. split it with responsibilities
+class Axis(models.Model):
+    name = models.CharField(max_length=15, default=None)
+    x0 = models.IntegerField(default=None)
+    y0 = models.IntegerField(default=None)
+    x1 = models.IntegerField(default=None)
+    y1 = models.IntegerField(default=None)
+    direction = models.CharField(max_length=10, default=None)
+
+    class Meta:
+        verbose_name = 'Ось'
+        verbose_name_plural = 'Оси'
+        ordering = ['name']
+
+
+class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
     CANVAS_WIDTH = 800
     CANVAS_HEIGHT = 600
     SCALE = 1  # mm/px
