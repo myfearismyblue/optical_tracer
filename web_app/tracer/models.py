@@ -1,5 +1,5 @@
 from math import sqrt, atan, pi
-from typing import Tuple, Callable, List
+from typing import Tuple, Callable, List, Dict
 
 from django.db import models
 
@@ -46,6 +46,7 @@ class Axis(models.Model):
     x1 = models.IntegerField(default=None)
     y1 = models.IntegerField(default=None)
     direction = models.CharField(max_length=10, default=None)
+    memory_id = models.BigIntegerField()
 
     class Meta:
         verbose_name = 'Ось'
@@ -66,6 +67,8 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
     def __new__(cls, opt_system):
         cls._optical_system = opt_system
+        cls._offset = (cls.OPTICAL_SYSTEM_OFFSET[0], cls.OPTICAL_SYSTEM_OFFSET[1])
+        cls._scale = cls.SCALE
         self = super().__new__(cls)
         return self
 
@@ -75,10 +78,12 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         cls._clear_db()
         cls(cls._init_optical_system())  # inits optical system with __new__
         cls._push_layers_to_db()
+        cls._push_axes_to_db()
 
     @staticmethod
     def _clear_db():
-        Boundary.objects.all().delete()
+        Boundary.objects.all().delete()     # on_delete=models.CASCADE for models.Point
+        Axis.objects.all().delete()
 
     @staticmethod
     def _init_optical_system():
@@ -141,9 +146,15 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         layers = cls._fetch_optical_components_layers()
         for layer in layers:
             model_layer = cls._append_layer_to_db(layer)
-            points = cls._fetch_layer_points(layer)
+            points = cls._calculate_layer_points(layer)
             for p in points:
                 cls._append_point_to_db(p, model_layer)
+
+    @classmethod
+    def _push_axes_to_db(cls):
+        """Calculates position of optical axes and pushes them to db"""
+        axes = cls._calculate_axes()
+        cls._append_axes_to_db(axes)
 
     @classmethod
     def _fetch_optical_components_layers(cls) -> List[Layer]:
@@ -159,13 +170,13 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         return model_layer
 
     @classmethod
-    def _fetch_layer_points(cls, layer: Layer) -> List[Tuple[int, int]]:
+    def _calculate_layer_points(cls, layer: Layer) -> List[Tuple[int, int]]:
         """
         Retrieves points of a given layer from optical system.
         return: list of points, represented by tuples of (x0, y0)). Coordinates are in pixels
         """
 
-        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 1) -> List[Tuple[int, int]]:
+        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 10) -> List[Tuple[int, int]]:
             """
             Gets a callable func of a boundary and calculates points
             which the boundary is consisted of with given step in pixels
@@ -200,6 +211,34 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             for l in comp._layers:
                 res.append(l.boundary)
         return res
+
+    @classmethod
+    def _calculate_axes(cls):
+        abscissa = {'direction': 'right',
+                    'name': 'abscissa',
+                    'x0': 0 ,
+                    'y0': 0 + cls._offset[1],
+                    'x1': cls.CANVAS_WIDTH,
+                    'y1': cls._offset[1] ,
+                    'memory_id': 0,
+        }
+        abscissa['memory_id'] = id(abscissa)
+
+        ordinate = {'direction': 'up',
+                    'name': 'ordinate',
+                    'x0': cls._offset[0],
+                    'y0': 0,
+                    'x1': cls._offset[0],
+                    'y1': cls.CANVAS_HEIGHT,
+                    'memory_id': 0,
+                    }
+        ordinate['memory_id'] = id(ordinate)
+        return abscissa, ordinate
+
+    @classmethod
+    def _append_axes_to_db(cls, axes: Tuple) -> None:
+        for axis in axes:
+            Axis.objects.create(**axis)
 
     @classmethod
     def _convert_opticalcoords_to_canvascoords(cls, opt_absciss: float, opt_ordinate: float, scale: float = SCALE,
