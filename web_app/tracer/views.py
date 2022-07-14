@@ -24,15 +24,22 @@ def index(request):
             lines_points_context[line.memory_id] = points
         return lines_points_context
 
-    def prepare_context_axes(lines_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
+    def prepare_context_axes(axis_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
         """Fetches axes from models.Axis and prepares context to render"""
         for axis in Axis.objects.all():
-            points = f'{axis.x0}, {axis.y0} {axis.x1}, {axis.y1}'
-            lines_points_context[axis.memory_id] = points
-        return lines_points_context
+            if axis.direction in ['down', 'right']:
+                points = f'{axis.x0}, {axis.y0} {axis.x1}, {axis.y1}'
+            elif axis.direction in ['up', 'left']:
+                points = f'{axis.x1}, {axis.y1} {axis.x0}, {axis.y0}'
+            else:
+                raise ValueError(f'Wrong direction type in {axis}: {axis.direction}')
+            axis_points_context[axis.memory_id] = points
+        return axis_points_context
+
     Grapher.make_initials()
     lines_points_context = prepare_context_boundaries()
-    lines_points_context = prepare_context_axes(lines_points_context)
+    axis_points_context = prepare_context_axes()
     return render(request, 'tracer/tracer.html', {'lines_points': lines_points_context,
+                                                  'axis_points' : axis_points_context,
                                                   'canvas_width': Grapher.CANVAS_WIDTH,
                                                   'canvas_height': Grapher.CANVAS_HEIGHT})

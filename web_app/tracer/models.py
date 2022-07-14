@@ -55,20 +55,22 @@ class Axis(models.Model):
 
 
 class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
-    CANVAS_WIDTH = 800
-    CANVAS_HEIGHT = 600
+    CANVAS_WIDTH = 1600  # px
+    CANVAS_HEIGHT = 1200  # px
     SCALE = 1  # mm/px
-    # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
-    OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 2)  # in pixels here
-
-    # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
-    # coordinates are upside-down because of reversion of vertical axis
-    BOUNDARY_DRAW_RANGES = (OPTICAL_SYSTEM_OFFSET[1] - CANVAS_HEIGHT, OPTICAL_SYSTEM_OFFSET[1])
+    OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __new__(cls, opt_system):
-        cls._optical_system = opt_system
-        cls._offset = (cls.OPTICAL_SYSTEM_OFFSET[0], cls.OPTICAL_SYSTEM_OFFSET[1])
+        cls._canvas_dimensions = cls.CANVAS_WIDTH, cls.CANVAS_HEIGHT
+
+        # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
+        cls._offset = cls._canvas_dimensions[0] // 3, cls._canvas_dimensions[1] // 3
         cls._scale = cls.SCALE
+        cls._optical_system = opt_system
+
+        # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
+        # coordinates are upside-down because of reversion of vertical axis
+        cls._height_draw_ranges = cls._offset[1] - cls._canvas_dimensions[1], cls._offset[1]
         self = super().__new__(cls)
         return self
 
@@ -91,7 +93,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
         def create_first_medium():
             first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')  #
-            first_right_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
+            first_right_bound = Layer(boundary=lambda y: 100 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
             first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
             first_medium = OpticalComponent(name='First')
             first_medium.add_layer(layer=first_left_bound)
@@ -100,8 +102,8 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             return first_medium
 
         def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 10 + y ** 2 / 300, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.LEFT, name='Second-right bound')
+            second_left_bound = Layer(boundary=lambda y: 100 + y ** 2 / 300, side=Side.RIGHT, name='Second-left bound')
+            second_right_bound = Layer(boundary=lambda y: 200 + y ** 2 / 300, side=Side.LEFT, name='Second-right bound')
             second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
             second_medium = OpticalComponent(name='Second')
             second_medium.add_layer(layer=second_left_bound)
@@ -110,8 +112,8 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             return second_medium
 
         def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 20 + y ** 2 / 300, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.LEFT, name='Third-right bound')
+            third_left_bound = Layer(boundary=lambda y: 200 + y ** 2 / 300, side=Side.RIGHT, name='Third-left bound')
+            third_right_bound = Layer(boundary=lambda y: 300 + y ** 2 / 300, side=Side.LEFT, name='Third-right bound')
             third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
             third_medium = OpticalComponent(name='Third')
             third_medium.add_layer(layer=third_left_bound)
@@ -120,7 +122,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             return third_medium
 
         def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 30 + y ** 2 / 300, side=Side.RIGHT, name='Fourth-left bound')
+            fourth_left_bound = Layer(boundary=lambda y: 300 + y ** 2 / 300, side=Side.RIGHT, name='Fourth-left bound')
             fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
             fourth_medium = OpticalComponent(name='Fourth')
             fourth_medium.add_layer(layer=fourth_left_bound)
@@ -182,7 +184,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             which the boundary is consisted of with given step in pixels
             """
             assert isinstance(boundary_func, Callable), f'Wrong call: {boundary_func}'
-            ys_in_mm = (el * cls.SCALE for el in range(cls.BOUNDARY_DRAW_RANGES[0], cls.BOUNDARY_DRAW_RANGES[1], step))
+            ys_in_mm = (el * cls.SCALE for el in range(cls._height_draw_ranges[0], cls._height_draw_ranges[1], step))
             zs_in_mm = (boundary_func(y) for y in ys_in_mm)
             points = list(cls._convert_opticalcoords_to_canvascoords(z, y, scale=cls.SCALE,
                                                                      absciss_offset=cls.OPTICAL_SYSTEM_OFFSET[0],
@@ -213,7 +215,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         return res
 
     @classmethod
-    def _calculate_axes(cls):
+    def _calculate_axes(cls) -> Tuple[Dict, Dict]:
         abscissa = {'direction': 'right',
                     'name': 'abscissa',
                     'x0': 0 ,

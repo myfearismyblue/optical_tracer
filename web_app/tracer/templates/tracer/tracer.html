@@ -8,9 +8,22 @@
 <body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
 <svg width="{{canvas_width}}" height="{{canvas_height}}">
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7"
+        refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+    </defs>
+
     {% for line, points in lines_points.items %}
-        <polyline points="{{points}}" stroke="black" fill="none"/>
+        <polyline points="{{points}}" stroke="black" fill="blue" />
     {% endfor %}
+
+    {% for axis, points in axis_points.items %}
+        <polyline points="{{points}}" stroke="black" fill="none" marker-end="url(#arrowhead)" />
+    {% endfor %}
+
+
 </svg>
 </body>
 </html>
