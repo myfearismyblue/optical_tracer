@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Axis, Boundary, Point
+from .models import Axis, Boundary, BoundaryPoint
 
 
 class LineAdmin(admin.ModelAdmin):
@@ -16,5 +16,5 @@ class AxisAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Boundary, LineAdmin)
-admin.site.register(Point, PointAdmin)
+admin.site.register(BoundaryPoint, PointAdmin)
 admin.site.register(Axis, AxisAdmin)

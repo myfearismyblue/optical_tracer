@@ -8,7 +8,7 @@ import sys
 
 sys.path.append(os.path.abspath('..'))
 
-from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem
+from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point
 
 
 class Boundary(models.Model):
@@ -25,7 +25,7 @@ class Boundary(models.Model):
         ordering = ['pk']
 
 
-class Point(models.Model):
+class BoundaryPoint(models.Model):
     x0 = models.IntegerField(verbose_name='x0')
     y0 = models.IntegerField(verbose_name='y0')
     line = models.ForeignKey(Boundary, on_delete=models.CASCADE)
@@ -52,6 +52,16 @@ class Axis(models.Model):
         verbose_name = 'Ось'
         verbose_name_plural = 'Оси'
         ordering = ['name']
+
+
+class Beam(models.Model):
+    memory_id = models.IntegerField(default=None)
+
+
+class BeamVector(models.Model):
+    x0 = models.IntegerField(default=None)
+    y0 = models.IntegerField(default=None)
+    beam = models.ForeignKey(Beam, on_delete=models.CASCADE)
 
 
 class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
@@ -81,11 +91,13 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         cls(cls._init_optical_system())  # inits optical system with __new__
         cls._push_layers_to_db()
         cls._push_axes_to_db()
+        cls._push_beams_to_db()
 
     @staticmethod
     def _clear_db():
-        Boundary.objects.all().delete()     # on_delete=models.CASCADE for models.Point
+        Boundary.objects.all().delete()     # on_delete=models.CASCADE for models.BoundaryPoint
         Axis.objects.all().delete()
+        Beam.objects.all().delete()
 
     @staticmethod
     def _init_optical_system():
@@ -137,6 +149,12 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
                                                                                           )
                                                                     )
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
+        in_point = Point(x=0, y=50, z=-30)
+        v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.65, psi=0)
+        opt_sys.trace(vector=v)
+        in_point1 = Point(x=0, y=-20, z=-70)
+        v1 = Vector(initial_point=in_point1, lum=1, w_length=555, theta=-0.3, psi=0)
+        opt_sys.trace(vector=v1)
         return opt_sys
 
     @classmethod
@@ -159,6 +177,11 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         cls._append_axes_to_db(axes)
 
     @classmethod
+    def _push_beams_to_db(cls):
+        beams = cls._fetch_beams()
+        cls._append_beams_to_db(beams)
+
+    @classmethod
     def _fetch_optical_components_layers(cls) -> List[Layer]:
         res = []
         for comp in cls._optical_system._components:
@@ -178,7 +201,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         return: list of points, represented by tuples of (x0, y0)). Coordinates are in pixels
         """
 
-        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 10) -> List[Tuple[int, int]]:
+        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 2) -> List[Tuple[int, int]]:
             """
             Gets a callable func of a boundary and calculates points
             which the boundary is consisted of with given step in pixels
@@ -194,16 +217,6 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
         boundary_points = _calculate_points_of_boundary_to_draw(layer.boundary)
         return boundary_points
-
-    @classmethod
-    def _append_point_to_db(cls, point: Tuple[int, int], model_layer) -> None:
-        """Gets a point (tuple of x0, y0) and an instance of a model of layer on boundary of which point is located.
-        Checks and creates an object
-        """
-        assert len(point) == 2, f'Wrong line format: {point}'
-        assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, ' \
-                                                                 f'but was given {[type(coord) for coord in point]}'
-        Point.objects.create(x0=point[0], y0=point[1], line=model_layer)
 
     @classmethod
     def _fetch_boundaries(cls) -> List[Callable]:
@@ -238,9 +251,43 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         return abscissa, ordinate
 
     @classmethod
+    def _fetch_beams(cls) -> Dict[int, List[Tuple[float, float]]]:
+        """Fetches traced beams from optical system and prepares them to be forwarded to db"""
+        def _get_point_from_vector(vector: Vector) -> Tuple[float, float]:
+            return vector.initial_point.z, vector.initial_point.y
+
+        tmp_beams = cls._optical_system._vectors        # {beam_id: [Vector]}
+        beams = dict()
+        for id, vector_list in tmp_beams.items():
+            beams[id] = []
+            for vector in vector_list:
+                optical_system_point = _get_point_from_vector(vector)
+                canvas_point = cls._convert_opticalcoords_to_canvascoords(optical_system_point[0], optical_system_point[1])
+                beams[id].append(canvas_point)
+        return beams
+
+    @classmethod
+    def _append_point_to_db(cls, point: Tuple[int, int], model_layer) -> None:
+        """Gets a point (tuple of x0, y0) and an instance of a model of layer on boundary of which point is located.
+        Checks and creates an object
+        """
+        assert len(point) == 2, f'Wrong line format: {point}'
+        assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, ' \
+                                                                 f'but was given {[type(coord) for coord in point]}'
+        BoundaryPoint.objects.create(x0=point[0], y0=point[1], line=model_layer)
+
+    @classmethod
     def _append_axes_to_db(cls, axes: Tuple) -> None:
         for axis in axes:
             Axis.objects.create(**axis)
+
+    @staticmethod
+    def _append_beams_to_db(beams: Dict[int, List[Tuple[float, float]]]) -> None:
+        for beam_id, beam_points in beams.items():
+            model_beam = Beam(memory_id=beam_id)
+            model_beam.save()
+            for point in beam_points:
+                BeamVector.objects.create(beam=model_beam, x0=point[0], y0=point[1])
 
     @classmethod
     def _convert_opticalcoords_to_canvascoords(cls, opt_absciss: float, opt_ordinate: float, scale: float = SCALE,

@@ -16,13 +16,16 @@
     </defs>
 
     {% for line, points in lines_points.items %}
-        <polyline points="{{points}}" stroke="black" fill="blue" />
+        <polyline points="{{points}}" stroke="black" fill="none" />
     {% endfor %}
 
     {% for axis, points in axis_points.items %}
         <polyline points="{{points}}" stroke="black" fill="none" marker-end="url(#arrowhead)" />
     {% endfor %}
 
+    {% for beam, points in beams_points.items %}
+        <polyline points="{{points}}" stroke="red" fill="none" stroke-width="2" />
+    {% endfor %}
 
 </svg>
 </body>

@@ -4,7 +4,7 @@ from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
 
-from .models import Boundary, Grapher, Point, Axis
+from .models import Boundary, Grapher, BoundaryPoint, Axis, Beam, BeamVector
 
 
 def index(request):
@@ -17,10 +17,10 @@ def index(request):
         return res
 
     def prepare_context_boundaries(lines_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
-        """Fetches all boundaries from models.Boundary. For each one fetches points to draw from model.Point. Stringifys
-        them and appends to context to be forwarded to template"""
+        """Fetches all boundaries from models.Boundary. For each one fetches points to draw from model.BoundaryPoint.
+        Stringifys them and appends to context to be forwarded to template"""
         for line in Boundary.objects.all():
-            points = _stringify_points_for_template(Point.objects.filter(line=line.pk))
+            points = _stringify_points_for_template(BoundaryPoint.objects.filter(line=line.pk))
             lines_points_context[line.memory_id] = points
         return lines_points_context
 
@@ -36,10 +36,24 @@ def index(request):
             axis_points_context[axis.memory_id] = points
         return axis_points_context
 
+    def prepare_context_beams(beams_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
+        """
+        Fetches beams from models.Beam. For each beam gets it's points from models.BeamVector.
+        Stringifys them and appends to context to be forwarded to template
+        """
+        for beam in Beam.objects.all():
+            points = _stringify_points_for_template(BeamVector.objects.filter(beam=beam.pk))
+            beams_points_context[beam.memory_id] = points
+        return beams_points_context
+
+
     Grapher.make_initials()
     lines_points_context = prepare_context_boundaries()
     axis_points_context = prepare_context_axes()
+    beams_points_context = prepare_context_beams()
+    print(beams_points_context)
     return render(request, 'tracer/tracer.html', {'lines_points': lines_points_context,
-                                                  'axis_points' : axis_points_context,
+                                                  'axis_points': axis_points_context,
+                                                  'beams_points': beams_points_context,
                                                   'canvas_width': Grapher.CANVAS_WIDTH,
                                                   'canvas_height': Grapher.CANVAS_HEIGHT})
