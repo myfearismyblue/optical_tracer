@@ -25,20 +25,6 @@ class Boundary(models.Model):
         ordering = ['pk']
 
 
-class BoundaryPoint(models.Model):
-    x0 = models.IntegerField(verbose_name='x0')
-    y0 = models.IntegerField(verbose_name='y0')
-    line = models.ForeignKey(Boundary, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f'Точкa : {(self.x0, self.y0)}'
-
-    class Meta:
-        verbose_name = 'Точка'
-        verbose_name_plural = 'Точки'
-        ordering = ['pk']
-
-
 class Axis(models.Model):
     name = models.CharField(max_length=15, default=None)
     x0 = models.IntegerField(default=None)
@@ -77,6 +63,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         cls._offset = cls._canvas_dimensions[0] // 3, cls._canvas_dimensions[1] // 3
         cls._scale = cls.SCALE
         cls._optical_system = opt_system
+        cls._graph_objects = {}
 
         # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
         # coordinates are upside-down because of reversion of vertical axis
@@ -95,7 +82,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
     @staticmethod
     def _clear_db():
-        Boundary.objects.all().delete()     # on_delete=models.CASCADE for models.BoundaryPoint
+        Boundary.objects.all().delete()  # on_delete=models.CASCADE for models.BoundaryPoint
         Axis.objects.all().delete()
         Beam.objects.all().delete()
 
@@ -150,11 +137,10 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
                                                                     )
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
         in_point = Point(x=0, y=50, z=-30)
-        v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.65, psi=0)
-        opt_sys.trace(vector=v)
-        in_point1 = Point(x=0, y=-20, z=-70)
-        v1 = Vector(initial_point=in_point1, lum=1, w_length=555, theta=-0.3, psi=0)
-        opt_sys.trace(vector=v1)
+        resolution = 10  # vectors per circle
+        for theta in range(int(2 * pi * resolution + 2 * pi * 1/resolution)):   # 2 * pi * 1/resolution addition to make compleete circle
+            v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
+            opt_sys.trace(vector=v)
         return opt_sys
 
     @classmethod
@@ -168,7 +154,8 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             model_layer = cls._append_layer_to_db(layer)
             points = cls._calculate_layer_points(layer)
             for p in points:
-                cls._append_point_to_db(p, model_layer)
+                cls._graph_objects[id(layer)] = points
+                # cls._append_point_to_db(p, model_layer)
 
     @classmethod
     def _push_axes_to_db(cls):
@@ -190,7 +177,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
     @classmethod
     def _append_layer_to_db(cls, layer):
-        model_layer = Boundary(name=layer.name, side=layer.side, memory_id=id(layer.boundary))
+        model_layer = Boundary(name=layer.name, side=layer.side, memory_id=id(layer))
         model_layer.save()
         return model_layer
 
@@ -201,7 +188,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         return: list of points, represented by tuples of (x0, y0)). Coordinates are in pixels
         """
 
-        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 2) -> List[Tuple[int, int]]:
+        def _calculate_points_of_boundary_to_draw(boundary_func: Callable, step: int = 1) -> List[Tuple[int, int]]:
             """
             Gets a callable func of a boundary and calculates points
             which the boundary is consisted of with given step in pixels
@@ -231,12 +218,12 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
     def _calculate_axes(cls) -> Tuple[Dict, Dict]:
         abscissa = {'direction': 'right',
                     'name': 'abscissa',
-                    'x0': 0 ,
+                    'x0': 0,
                     'y0': 0 + cls._offset[1],
                     'x1': cls.CANVAS_WIDTH,
-                    'y1': cls._offset[1] ,
+                    'y1': cls._offset[1],
                     'memory_id': 0,
-        }
+                    }
         abscissa['memory_id'] = id(abscissa)
 
         ordinate = {'direction': 'up',

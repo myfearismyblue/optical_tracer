@@ -1,18 +1,21 @@
-from typing import Dict
+from typing import Dict, Iterable
 
 from django.db.models import QuerySet
 from django.http import HttpResponse
 from django.shortcuts import render
 
-from .models import Boundary, Grapher, BoundaryPoint, Axis, Beam, BeamVector
+from .models import Boundary, Grapher, Axis, Beam, BeamVector
 
 
 def index(request):
-    def _stringify_points_for_template(pts: QuerySet) -> str:
+    def _stringify_points_for_template(pts: Iterable) -> str:
         """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
         res = ''
         for p in pts:
-            current_element = f'{p.x0}, {p.y0}'
+            if hasattr(p, 'x0'):                         # TODO: Refactor this shit
+                current_element = f'{p.x0}, {p.y0}'
+            else:
+                current_element = f'{p[0]}, {p[1]}'
             res = ' '.join((res, current_element))      # _space_ here to separate x1, y1_space_x2, y2
         return res
 
@@ -20,7 +23,7 @@ def index(request):
         """Fetches all boundaries from models.Boundary. For each one fetches points to draw from model.BoundaryPoint.
         Stringifys them and appends to context to be forwarded to template"""
         for line in Boundary.objects.all():
-            points = _stringify_points_for_template(BoundaryPoint.objects.filter(line=line.pk))
+            points = _stringify_points_for_template(Grapher._graph_objects[line.memory_id])
             lines_points_context[line.memory_id] = points
         return lines_points_context
 
@@ -46,12 +49,12 @@ def index(request):
             beams_points_context[beam.memory_id] = points
         return beams_points_context
 
-
     Grapher.make_initials()
+
     lines_points_context = prepare_context_boundaries()
     axis_points_context = prepare_context_axes()
     beams_points_context = prepare_context_beams()
-    print(beams_points_context)
+
     return render(request, 'tracer/tracer.html', {'lines_points': lines_points_context,
                                                   'axis_points': axis_points_context,
                                                   'beams_points': beams_points_context,

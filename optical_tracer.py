@@ -12,7 +12,7 @@ from scipy.misc import derivative
 from scipy.optimize import fsolve
 import numpy as np
 
-DEBUG = True
+DEBUG = False
 OPT_SYS_DIMENSIONS = (-100, 100)
 OPTICAL_RANGE = (380, 780)  # in nanometers
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
@@ -986,8 +986,8 @@ class OpticalSystem:
                                                                                         components=self._components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    return list(self._vectors.values())[0]
-                raise NotImplementedError('Seems to be found nothing')
+                    print(f'Tracing finished for vector with theta: {self._vectors[id(initial_vector)][0].theta}')
+                return list(self._vectors.values())[0]
             prev_index = current_component.material.refractive_index
             current_component = self.get_containing_component_or_default(vector=current_vector)
             next_index = current_component.material.refractive_index
@@ -1057,7 +1057,7 @@ def main():
     # intersec = opt_sys._components[0]._layers[1].get_layer_intersection(vector=v)
     # print(intersec)
     print(*opt_sys.trace(vector=v), sep='\n')
-    # v.get_line_equation(repr=1)
+    # v.get_line_equation(verbose=1)
 
 # if __name__ == '__main__':
 #     main()
