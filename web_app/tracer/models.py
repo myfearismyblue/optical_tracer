@@ -68,6 +68,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
         # coordinates are upside-down because of reversion of vertical axis
         cls._height_draw_ranges = cls._offset[1] - cls._canvas_dimensions[1], cls._offset[1]
+        cls._width_draw_ranges = -cls._offset[0], cls._canvas_dimensions[0] - cls._offset[0]
         self = super().__new__(cls)
         return self
 
@@ -240,17 +241,48 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
     @classmethod
     def _fetch_beams(cls) -> Dict[int, List[Tuple[float, float]]]:
         """Fetches traced beams from optical system and prepares them to be forwarded to db"""
+
         def _get_point_from_vector(vector: Vector) -> Tuple[float, float]:
             return vector.initial_point.z, vector.initial_point.y
 
-        tmp_beams = cls._optical_system._vectors        # {beam_id: [Vector]}
+        def _get_canvas_vector_intersection(vector: Vector) -> Tuple[int, int]:
+            """For a given vector and canvas returns intersection of this vector with canvas borders in pixels"""
+
+            left_border_z_mm, upper_border_y_mm = cls._convert_canvascoords_to_optical(0, 0)
+            right_border_z_mm, bottom_border_y_mm = cls._convert_canvascoords_to_optical(*cls._canvas_dimensions)
+            try:
+                vector_equation: Callable = vector.get_line_equation()      # z=f(y)
+                if 0 < vector.theta < pi:
+                    upper_border_z_mm = vector_equation(upper_border_y_mm)
+                    opt_z, opt_y = upper_border_z_mm, upper_border_y_mm
+                elif pi < vector.theta < 2 * pi:
+                    bottom_border_z_mm = vector_equation(bottom_border_y_mm)
+                    opt_z, opt_y = bottom_border_z_mm, bottom_border_y_mm
+                else:
+                    raise AssertionError(f'Cannot find intersection with canvas for: {vector}')
+
+            except ZeroDivisionError:
+                if vector.theta == pi:
+                    opt_z, opt_y = left_border_z_mm, vector.initial_point.y
+                elif vector.theta == 0:
+                    opt_z, opt_y = right_border_z_mm, vector.initial_point.y
+                else:
+                    raise AssertionError(f'Cannot find intersection with canvas for: {vector}')
+
+            canvas_z, canvas_y = cls._convert_opticalcoords_to_canvascoords(opt_z, opt_y)
+            return canvas_z, canvas_y
+
+        tmp_beams = cls._optical_system._vectors  # {beam_id: [Vectors]}
         beams = dict()
         for id, vector_list in tmp_beams.items():
             beams[id] = []
             for vector in vector_list:
-                optical_system_point = _get_point_from_vector(vector)
-                canvas_point = cls._convert_opticalcoords_to_canvascoords(optical_system_point[0], optical_system_point[1])
+                optical_system_point = _get_point_from_vector(vector)  # Tuple[float, float]
+                canvas_point = cls._convert_opticalcoords_to_canvascoords(optical_system_point[0],
+                                                                          optical_system_point[1])
                 beams[id].append(canvas_point)
+            last_point = _get_canvas_vector_intersection(vector_list[-1])
+            beams[id].append(last_point)
         return beams
 
     @classmethod
@@ -287,6 +319,17 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         canvas_abscissa = int(opt_absciss * scale + absciss_offset)
         canvas_ordinate = int(ordinate_offset - opt_ordinate * scale)  # minus because of canvas ordinate directed down
         return canvas_abscissa, canvas_ordinate
+
+    @classmethod
+    def _convert_canvascoords_to_optical(cls, canvas_abscissa: int, canvas_ordinate: int, *, scale: float = SCALE,
+                                         absciss_offset: int = OPTICAL_SYSTEM_OFFSET[0],
+                                         ordinate_offset: int = OPTICAL_SYSTEM_OFFSET[1]) -> Tuple[float, float]:
+        """ Returns real coordinates in mm
+        scale - in pixels per mm
+        """
+        opt_absciss = (canvas_abscissa - absciss_offset) / scale
+        opt_ordinate = (ordinate_offset - canvas_ordinate) / scale
+        return opt_absciss, opt_ordinate
 
     @staticmethod
     def _transform_line_representation(x0: int, y0: int, x1: int, y1: int) -> Tuple[int, int, float, int]:

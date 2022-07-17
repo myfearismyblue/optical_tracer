@@ -363,11 +363,12 @@ class Vector(ICheckable):
         temp_val = VectorCheckStrategy.validate_angles({'psi': value})
         self._psi = temp_val['psi']
 
-    def get_line_equation(self, repr=False) -> Callable:  # FIXME: rename repr here
+    def get_line_equation(self, verbose=False) -> Callable:
         """Returns callable - equation of a line in z = f(y), where z is an optical axis"""
         slope = 1 / tan(self.theta)
         intercept = self.initial_point.z - self.initial_point.y / tan(self.theta)
-        print(f'{slope}*y + {intercept}') if repr else None
+        if DEBUG:
+            print(f'{slope}*y + {intercept}') if verbose else None
         return lambda y: slope * y + intercept
 
 
