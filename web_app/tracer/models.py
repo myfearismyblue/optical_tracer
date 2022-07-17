@@ -89,21 +89,21 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
 
     @staticmethod
     def _init_optical_system():
-        """Creates an Optical System which is composed of three parallel layers and four optical media"""
+        """Creates an Optical System"""
 
         def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0 + y ** 2 / 300, side=Side.RIGHT, name='First-left bound')  #
-            first_right_bound = Layer(boundary=lambda y: 100 + y ** 2 / 300, side=Side.LEFT, name='First-right bound')
+            first_left_bound = Layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT, name='First-left bound')  #
+            # first_right_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.LEFT, name='First-right bound')
             first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
             first_medium = OpticalComponent(name='First')
             first_medium.add_layer(layer=first_left_bound)
-            first_medium.add_layer(layer=first_right_bound)
+            # first_medium.add_layer(layer=first_right_bound)
             first_medium.material = first_material
             return first_medium
 
         def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 100 + y ** 2 / 300, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 200 + y ** 2 / 300, side=Side.LEFT, name='Second-right bound')
+            second_left_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT, name='Second-left bound')
+            second_right_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT, name='Second-right bound')
             second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
             second_medium = OpticalComponent(name='Second')
             second_medium.add_layer(layer=second_left_bound)
@@ -112,8 +112,8 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             return second_medium
 
         def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 200 + y ** 2 / 300, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 300 + y ** 2 / 300, side=Side.LEFT, name='Third-right bound')
+            third_left_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT, name='Third-left bound')
+            third_right_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT, name='Third-right bound')
             third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
             third_medium = OpticalComponent(name='Third')
             third_medium.add_layer(layer=third_left_bound)
@@ -122,7 +122,7 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
             return third_medium
 
         def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 300 + y ** 2 / 300, side=Side.RIGHT, name='Fourth-left bound')
+            fourth_left_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT, name='Fourth-left bound')
             fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
             fourth_medium = OpticalComponent(name='Fourth')
             fourth_medium.add_layer(layer=fourth_left_bound)
@@ -140,8 +140,9 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
         in_point = Point(x=0, y=50, z=-30)
         resolution = 10  # vectors per circle
         for theta in range(int(2 * pi * resolution + 2 * pi * 1/resolution)):   # 2 * pi * 1/resolution addition to make compleete circle
-            v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
-            opt_sys.trace(vector=v)
+            if True:  #39 < theta < 42 and
+                v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
+                opt_sys.trace(vector=v)
         return opt_sys
 
     @classmethod

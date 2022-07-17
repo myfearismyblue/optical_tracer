@@ -13,7 +13,7 @@ from scipy.optimize import fsolve
 import numpy as np
 
 DEBUG = False
-OPT_SYS_DIMENSIONS = (-100, 100)
+OPT_SYS_DIMENSIONS = (-500, 500)
 OPTICAL_RANGE = (380, 780)  # in nanometers
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 TOLL = 10 ** -3  # to use in scipy functions
@@ -22,7 +22,7 @@ METRE = 1
 CENTIMETRE = METRE * 10 ** -2
 MILLIMETRE = METRE * 10 ** -3
 NANOMETRE = METRE * 10 ** -9
-NO_REFRACTION = False
+N0_REFLECTION = NO_REFRACTION = False and DEBUG
 
 
 def kwargs_only(cls):
@@ -257,7 +257,7 @@ class Point(ICheckable):
         :argument Use string as input like point.get_coords('yx').
         :returns dict like {'y': 0, 'x': 0.5}
         """
-        if not coords or not all(('_'+str(coord) in self.__slots__ for coord in coords)):
+        if not coords or not all(('_' + str(coord) in self.__slots__ for coord in coords)):
             raise UnspecifiedFieldException(
                 f'Input coords mismatches. Was given {[c for c in coords]} '
                 f'but needed any of {[c[1:] if c.startswith("_") else c for c in self.__slots__]}')
@@ -371,7 +371,6 @@ class Vector(ICheckable):
             print(f'{slope}*y + {intercept}') if verbose else None
         return lambda y: slope * y + intercept
 
-
     @staticmethod
     def calculate_angles(*, slope, deg=False):
         """Returns and inclination between optical axis (z-axis) and a line, which slope is given"""
@@ -383,7 +382,7 @@ class Vector(ICheckable):
             theta = atan(1 / slope) % (pi)
         except ZeroDivisionError:
             theta = pi / 2
-        theta = theta * 180/pi if deg else theta
+        theta = theta * 180 / pi if deg else theta
         print(f'theta is {theta} degs' if deg else f'theta is {theta} rads')
         return theta
 
@@ -521,7 +520,7 @@ class Layer(ICheckable):
             equation = lambda y: surface(y) - line(y)  # only for (y,z)-plane
             probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
         except ZeroDivisionError:
-            if surface(vector.initial_point.y) is None: # FIXME: actual behaviour of surface() has to be considered
+            if surface(vector.initial_point.y) is None:  # FIXME: actual behaviour of surface() has to be considered
                 raise NoIntersectionWarning
             else:
                 probable_y_intersections = [vector.initial_point.y]
@@ -594,7 +593,7 @@ class Layer(ICheckable):
             vector_y = vector.initial_point.y
 
             intersection_quadrant: int  # the quadrant where intersection is located relatively to vector
-            if vector_y - current_y>= 0 and vector_z - current_z > 0:
+            if vector_y - current_y >= 0 and vector_z - current_z > 0:
                 intersection_quadrant = 3
             elif vector_y - current_y < 0 and vector_z - current_z >= 0:
                 intersection_quadrant = 2
@@ -606,13 +605,13 @@ class Layer(ICheckable):
                 raise AssertionError(f'Something wrong with intersection quadrants')
 
             vector_directed_quadrant: int  # the quadrant vector directed to
-            if pi <= vector.theta <= 3*pi/2:
+            if pi <= vector.theta <= 3 * pi / 2:
                 vector_directed_quadrant = 3
-            elif 3*pi/2 < vector.theta < 2*pi:
+            elif 3 * pi / 2 < vector.theta < 2 * pi:
                 vector_directed_quadrant = 4
-            elif pi/2 <= vector.theta < pi:
+            elif pi / 2 <= vector.theta < pi:
                 vector_directed_quadrant = 2
-            elif 0 <= vector.theta < pi/2:
+            elif 0 <= vector.theta < pi / 2:
                 vector_directed_quadrant = 1
             else:
                 raise AssertionError(f'Something wrong with vectors direction quadrants')
@@ -624,7 +623,6 @@ class Layer(ICheckable):
                      f'theta={vector.theta:.3f}, '
                      f'intersection at (y,z)=({current_y:.3f}, {surface(current_y):.3f})', NoIntersectionWarning)
             return False
-
 
         approved_ys = []
         for current_y in probable_ys:
@@ -670,7 +668,6 @@ class Layer(ICheckable):
         boundary = self.boundary
         opposite_name = f'opposite {self.name}'
         return Layer(boundary=boundary, side=opposite_side, name=opposite_name)
-
 
 
 def _find_closest_intersection(*, approved_intersections: List[Point], vector: Vector) -> Point:
@@ -949,6 +946,23 @@ class OpticalSystem:
         ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
         return ret
 
+    @staticmethod
+    def _get_reflect_angle(*, vector_angle: float, normal_angle: float):
+        """
+        Implements specular reflection.
+        :param vector_angle: vector's global angle to optical axis [0, 2*pi)
+        :param normal_angle: angle of  normal at the point of intersection to optical axis [0, pi)
+        :return: vector's global angle after reflection (to the z-axis)
+        """
+        assert 0 <= vector_angle < 2 * pi  # only clear data in the class
+        assert 0 <= normal_angle < pi
+
+        alpha = vector_angle - normal_angle  # local angle of incidence
+        assert alpha != pi / 2 and alpha != 3 * pi / 2  # assuming vector isn't tangental to boundary
+        beta = pi - alpha
+        ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
+        return ret
+
     def get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
         """Returns thc component of system which contains given vector or returns default background"""
         try:
@@ -957,7 +971,7 @@ class OpticalSystem:
             return self.default_background_component
 
     def refract(self, *, vector: Vector, layer: Layer, prev_index: float, next_index: float) -> Vector:
-        if DEBUG and NO_REFRACTION:
+        if NO_REFRACTION:
             return vector
 
         normal_angle = layer.get_normal_angle(point=vector.initial_point)
@@ -965,6 +979,15 @@ class OpticalSystem:
         refracted_vector.theta = self._get_refract_angle(vector_angle=vector.theta, normal_angle=normal_angle,
                                                          prev_index=prev_index, next_index=next_index)
         return refracted_vector
+
+    def reflect(self, *, vector: Vector, layer: Layer) -> Vector:
+        if N0_REFLECTION:
+            return vector
+
+        normal_angle = layer.get_normal_angle(point=vector.initial_point)
+        reflected_vector = copy(vector)
+        reflected_vector.theta = self._get_reflect_angle(vector_angle=vector.theta, normal_angle=normal_angle)
+        return reflected_vector
 
     def trace(self, vector: Vector):
         """Traces vector through the whole optical system"""
@@ -987,78 +1010,86 @@ class OpticalSystem:
                                                                                         components=self._components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    print(f'Tracing finished for vector with theta: {self._vectors[id(initial_vector)][0].theta}')
+                    print(f'Tracing is finished for vector with theta: {self._vectors[id(initial_vector)][0].theta}')
                 return list(self._vectors.values())[0]
             prev_index = current_component.material.refractive_index
             current_component = self.get_containing_component_or_default(vector=current_vector)
             next_index = current_component.material.refractive_index
-            current_vector = self.refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
-                                          next_index=next_index)
+
+            try:
+                current_vector = self.refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
+                                              next_index=next_index)
+            except ValueError as e:
+                if 'math domain error' not in e.args:  # if not wrong asin in OpticalSystem._get_refract_angle()
+                    raise e
+                if DEBUG:
+                    warn(f'\nTotal internal reflection is occurred for '
+                         f'{self._vectors[id(initial_vector)][0]}.')
+
+                current_vector = self.reflect(vector=current_vector, layer=intersection_layer)
+
+                return list(self._vectors[id(initial_vector)])
+
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
 
 
 def main():
-    def create_opt_sys():
-        """Creates an Optical System which is composed of three parallel layers and five optical media"""
+    def create_first_medium():
+        first_left_bound = Layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT, name='First-left bound')  #
+        # first_right_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.LEFT, name='First-right bound')
+        first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
+        first_medium = OpticalComponent(name='First')
+        first_medium.add_layer(layer=first_left_bound)
+        # first_medium.add_layer(layer=first_right_bound)
+        first_medium.material = first_material
+        return first_medium
 
-        def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0, side=Side.RIGHT, name='First-left bound')
-            first_right_bound = Layer(boundary=lambda y: 10, side=Side.LEFT, name='First-right bound')
-            first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
-            first_medium = OpticalComponent(name='First')
-            first_medium.add_layer(layer=first_left_bound)
-            first_medium.add_layer(layer=first_right_bound)
-            first_medium.material = first_material
-            return first_medium
+    def create_second_medium():
+        second_left_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT, name='Second-left bound')
+        second_right_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT, name='Second-right bound')
+        second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
+        second_medium = OpticalComponent(name='Second')
+        second_medium.add_layer(layer=second_left_bound)
+        second_medium.add_layer(layer=second_right_bound)
+        second_medium.material = second_material
+        return second_medium
 
-        def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 10, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 20, side=Side.LEFT, name='Second-right bound')
-            second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
-            second_medium = OpticalComponent(name='Second')
-            second_medium.add_layer(layer=second_left_bound)
-            second_medium.add_layer(layer=second_right_bound)
-            second_medium.material = second_material
-            return second_medium
+    def create_third_medium():
+        third_left_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT, name='Third-left bound')
+        third_right_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT, name='Third-right bound')
+        third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
+        third_medium = OpticalComponent(name='Third')
+        third_medium.add_layer(layer=third_left_bound)
+        third_medium.add_layer(layer=third_right_bound)
+        third_medium.material = third_material
+        return third_medium
 
-        def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 20, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 30, side=Side.LEFT, name='Third-right bound')
-            third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
-            third_medium = OpticalComponent(name='Third')
-            third_medium.add_layer(layer=third_left_bound)
-            third_medium.add_layer(layer=third_right_bound)
-            third_medium.material = third_material
-            return third_medium
+    def create_fourth_medium():
+        fourth_left_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT, name='Fourth-left bound')
+        fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
+        fourth_medium = OpticalComponent(name='Fourth')
+        fourth_medium.add_layer(layer=fourth_left_bound)
+        fourth_medium.material = fourth_material
+        return fourth_medium
 
-        def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 30, side=Side.RIGHT, name='Fourth-left bound')
-            fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
-            fourth_medium = OpticalComponent(name='Fourth')
-            fourth_medium.add_layer(layer=fourth_left_bound)
-            fourth_medium.material = fourth_material
-            return fourth_medium
+    opt_sys = OpticalSystem()
+    first_medium, second_medium, third_medium, fourth_medium = (medium for medium in (create_first_medium(),
+                                                                                      create_second_medium(),
+                                                                                      create_third_medium(),
+                                                                                      create_fourth_medium()
+                                                                                      )
+                                                                )
+    [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
+    in_point = Point(x=0, y=50, z=-30)
+    resolution = 10  # vectors per circle
+    for theta in range(
+            int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
+        if theta in range(39,41):
+            v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
+            opt_sys.trace(vector=v)
+            print(f'-------{theta}------------')
+    return opt_sys
 
-        opt_sys = OpticalSystem()
-        first_medium, second_medium, third_medium, fourth_medium = (medium for medium in (create_first_medium(),
-                                                                                          create_second_medium(),
-                                                                                          create_third_medium(),
-                                                                                          create_fourth_medium()
-                                                                                          )
-                                                                    )
-        [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
-        return opt_sys
 
-    in_point = Point(x=0, y=1, z=2)
-    # in_point.set_coords(x="1", y=2, z=3)
-    # print(in_point)
-    opt_sys = create_opt_sys()
-
-    v = Vector(initial_point=in_point, lum=1, w_length=555, theta=0.0, psi=0)
-    # intersec = opt_sys._components[0]._layers[1].get_layer_intersection(vector=v)
-    # print(intersec)
-    print(*opt_sys.trace(vector=v), sep='\n')
-    # v.get_line_equation(verbose=1)
-
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()
