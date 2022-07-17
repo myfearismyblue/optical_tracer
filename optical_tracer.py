@@ -594,13 +594,13 @@ class Layer(ICheckable):
             vector_y = vector.initial_point.y
 
             intersection_quadrant: int  # the quadrant where intersection is located relatively to vector
-            if vector_y - current_y>= 0 and vector_z - current_z >= 0:
+            if vector_y - current_y>= 0 and vector_z - current_z > 0:
                 intersection_quadrant = 3
-            elif vector_y - current_y < 0 and vector_z - current_z > 0:
+            elif vector_y - current_y < 0 and vector_z - current_z >= 0:
                 intersection_quadrant = 2
-            elif vector_y - current_y>= 0 and vector_z - current_z < 0:
+            elif vector_y - current_y > 0 and vector_z - current_z <= 0:
                 intersection_quadrant = 4
-            elif vector_y - current_y < 0 and vector_z - current_z <= 0:
+            elif vector_y - current_y <= 0 and vector_z - current_z < 0:
                 intersection_quadrant = 1
             else:
                 raise AssertionError(f'Something wrong with intersection quadrants')
