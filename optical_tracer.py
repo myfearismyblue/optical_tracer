@@ -806,7 +806,7 @@ class OpticalComponent:
         intersection = intersection_layer, intersection_point = self._get_component_intersection(vector=input_vector)
         # TODO: check existence of intersection
         destination_distance = get_distance(input_vector.initial_point, intersection_point)
-        attenuation = self.material.transmittance * PERCENT / CENTIMETRE * destination_distance * MILLIMETRE
+        attenuation = self._calculate_attenuation(distance=destination_distance)
         assert 0 <= attenuation <= 1
         attenuated_lum = input_vector.lum - attenuation * input_vector.lum
         output_theta = input_vector.theta
@@ -814,6 +814,10 @@ class OpticalComponent:
         output_vector = Vector(initial_point=intersection_point, lum=attenuated_lum, w_length=input_vector.w_length,
                                theta=output_theta, psi=output_psi)
         return output_vector, intersection_layer
+
+    def _calculate_attenuation(self, distance: float) -> float:
+        """Gets distance in mm and returns attenuation"""
+        return 1 - (1 - self.material.transmittance * PERCENT) ** (distance * MILLIMETRE / CENTIMETRE)
 
 
 class DefaultOpticalComponent(OpticalComponent):
