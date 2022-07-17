@@ -593,7 +593,7 @@ class Layer(ICheckable):
             vector_z = vector.initial_point.z
             vector_y = vector.initial_point.y
 
-            intersection_quadrant :int  # the quadrant where intersection is located relatively to vector
+            intersection_quadrant: int  # the quadrant where intersection is located relatively to vector
             if vector_y - current_y>= 0 and vector_z - current_z >= 0:
                 intersection_quadrant = 3
             elif vector_y - current_y < 0 and vector_z - current_z > 0:
@@ -603,7 +603,7 @@ class Layer(ICheckable):
             elif vector_y - current_y < 0 and vector_z - current_z <= 0:
                 intersection_quadrant = 1
             else:
-                assert True, f'Something wrong with intersection quadrants'
+                raise AssertionError(f'Something wrong with intersection quadrants')
 
             vector_directed_quadrant: int  # the quadrant vector directed to
             if pi <= vector.theta <= 3*pi/2:
@@ -615,7 +615,7 @@ class Layer(ICheckable):
             elif 0 <= vector.theta < pi/2:
                 vector_directed_quadrant = 1
             else:
-                assert True, f'Something wrong with vectors direction quadrants'
+                raise AssertionError(f'Something wrong with vectors direction quadrants')
 
             if intersection_quadrant == vector_directed_quadrant:
                 return True
