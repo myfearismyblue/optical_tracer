@@ -13,10 +13,24 @@
         refX="9" refY="3.5" orient="auto">
             <polygon points="0 0, 10 3.5, 0 7" />
         </marker>
+
+        <radialGradient id="Gradient1" cx="0%" cy="0%" r="100%">
+            <stop class="stop1" offset="0%"/>
+            <stop class="stop2" offset="100%"/>
+        </radialGradient>
+<!--        <linearGradient id="Gradient2" x1="0" x2="0" y1="0" y2="1">-->
+<!--            <stop offset="0%" stop-color="red"/>-->
+<!--            <stop offset="50%" stop-color="red" stop-opacity="0"/>-->
+<!--        </linearGradient>-->
+        <style type="text/css"><![CDATA[
+            .beam { stroke: url(#Gradient1); }
+            .stop1 { stop-color: red; }
+            .stop2 { stop-color: orange; stop-opacity: 10%; }
+        ]]></style>
     </defs>
 
     {% for line, points in lines_points.items %}
-        <polyline points="{{points}}" stroke="black" fill="none" />
+        <polyline points="{{points}}" stroke="royalblue" fill="deepskyblue" />
     {% endfor %}
 
     {% for axis, points in axis_points.items %}
@@ -24,7 +38,7 @@
     {% endfor %}
 
     {% for beam, points in beams_points.items %}
-        <polyline points="{{points}}" stroke="red" fill="none" stroke-width="2" />
+        <polyline class="beam" points="{{points}}"  fill="none" stroke-width="3" />
     {% endfor %}
 
 </svg>
