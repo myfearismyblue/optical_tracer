@@ -137,10 +137,10 @@ class Grapher:  # FIXME: looks like a godclass. split it with responsibilities
                                                                                           )
                                                                     )
         [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
-        in_point = Point(x=0, y=50, z=-30)
+        in_point = Point(x=0, y=50, z=250)
         resolution = 10  # vectors per circle
         for theta in range(int(2 * pi * resolution + 2 * pi * 1/resolution)):   # 2 * pi * 1/resolution addition to make compleete circle
-            if True:  #39 < theta < 42 and
+            if  True:  #52 <= theta < 53 and
                 v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
                 opt_sys.trace(vector=v)
         return opt_sys

@@ -13,7 +13,7 @@ from scipy.optimize import fsolve
 import numpy as np
 
 DEBUG = False
-OPT_SYS_DIMENSIONS = (-500, 500)
+OPT_SYS_DIMENSIONS = (-100, 100)
 OPTICAL_RANGE = (380, 780)  # in nanometers
 QUARTER_PART_IN_MM = 10 ** (-6) / 4  # used in expressions like 555 nm * 10 ** (-6) / 4 to represent tolerance
 TOLL = 10 ** -3  # to use in scipy functions
@@ -34,19 +34,26 @@ def kwargs_only(cls):
 
     return call
 
+class DomainBaseException(Exception):
+    """Base class for optical domain exceptions"""
 
-class VectorOutOfComponentException(Exception):
+
+class VectorOutOfComponentException(DomainBaseException):
     """Raises then coords of a vector are out of optical component which it was given"""
     pass
 
 
-class VectorNotOnBoundaryException(Exception):
+class VectorNotOnBoundaryException(DomainBaseException):
     """Raises then vector is supposed to be on the boundary of layer, but it is not"""
     pass
 
 
-class NoIntersectionWarning(Warning):
+class NoIntersectionWarning(DomainBaseException):
     """Raises then vector doesn't intersect any surface"""
+    pass
+
+class TotalInnerReflectionException(DomainBaseException):
+    """Raises when refraction couldn't be provided"""
     pass
 
 
@@ -936,6 +943,7 @@ class OpticalSystem:
         :param prev_index: index of medium vector is leaving
         :param next_index: index of medium vector is arriving to
         :return: vector's global angle after transition to the new medium (to the z-axis)
+        Raises TotalInnerReflectionException if asin couldn't be calculated
         """
         assert 0 <= vector_angle < 2 * pi  # only clear data in the class
         assert 0 <= normal_angle < pi
@@ -943,7 +951,14 @@ class OpticalSystem:
 
         alpha = vector_angle - normal_angle  # local angle of incidence
         assert alpha != pi / 2 and alpha != 3 * pi / 2  # assuming vector isn't tangental to boundary
-        beta = asin(prev_index / next_index * sin(alpha)) % (2 * pi)
+
+        try:
+            beta = asin(prev_index / next_index * sin(alpha)) % (2 * pi)
+        except ValueError as e:
+            if 'math domain error' not in e.args:  # if not wrong asin in OpticalSystem._get_refract_angle()
+                raise e
+            raise TotalInnerReflectionException from e
+
         # if vector and normal are contrdirected asin(sin(x)) doesn't give x, so make some addition
         beta = pi - beta if pi / 2 < abs(alpha) < 3 * pi / 2 else beta
 
@@ -1014,7 +1029,8 @@ class OpticalSystem:
                                                                                         components=self._components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    print(f'Tracing is finished for vector with theta: {self._vectors[id(initial_vector)][0].theta}')
+                    print(f'Tracing is finished for vector: {self._vectors[id(initial_vector)][0]}. '
+                          f'Last point is {self._vectors[id(initial_vector)][-1].initial_point}')
                 return list(self._vectors.values())[0]
             prev_index = current_component.material.refractive_index
             current_component = self.get_containing_component_or_default(vector=current_vector)
@@ -1023,19 +1039,13 @@ class OpticalSystem:
             try:
                 current_vector = self.refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
                                               next_index=next_index)
-            except ValueError as e:
-                if 'math domain error' not in e.args:  # if not wrong asin in OpticalSystem._get_refract_angle()
-                    raise e
+            except TotalInnerReflectionException as e:
                 if DEBUG:
                     warn(f'\nTotal internal reflection is occurred for '
                          f'{self._vectors[id(initial_vector)][0]}.')
-
                 current_vector = self.reflect(vector=current_vector, layer=intersection_layer)
 
-                return list(self._vectors[id(initial_vector)])
-
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
-
 
 def main():
     def create_first_medium():
@@ -1084,14 +1094,13 @@ def main():
                                                                                       )
                                                                 )
     [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
-    in_point = Point(x=0, y=50, z=-30)
+    in_point = Point(x=0, y=50, z=250)
     resolution = 10  # vectors per circle
     for theta in range(
             int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
-        if theta in range(39,41):
+        if 52 <= theta < 53 and True:  #
             v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
             opt_sys.trace(vector=v)
-            print(f'-------{theta}------------')
     return opt_sys
 
 
