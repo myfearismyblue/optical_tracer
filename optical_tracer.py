@@ -34,6 +34,7 @@ def kwargs_only(cls):
 
     return call
 
+
 class DomainBaseException(Exception):
     """Base class for optical domain exceptions"""
 
@@ -51,6 +52,7 @@ class VectorNotOnBoundaryException(DomainBaseException):
 class NoIntersectionWarning(DomainBaseException):
     """Raises then vector doesn't intersect any surface"""
     pass
+
 
 class TotalInnerReflectionException(DomainBaseException):
     """Raises when refraction couldn't be provided"""
@@ -105,7 +107,8 @@ class BaseCheckStrategy(ABC):
     @staticmethod
     def _ensure___slots__ok(cls, expected_attrs):
         """Inner assertion to ensure validation to be done for all __slots__ """
-        assert all((f'{sl_attr[1:]}' if sl_attr.startswith('_') else sl_attr in expected_attrs for sl_attr in cls.__slots__))
+        assert all(
+            (f'{sl_attr[1:]}' if sl_attr.startswith('_') else sl_attr in expected_attrs for sl_attr in cls.__slots__))
         assert all((f'_{exp_attr}' in cls.__slots__ for exp_attr in expected_attrs))
 
     @staticmethod
@@ -1046,6 +1049,7 @@ class OpticalSystem:
                 current_vector = self.reflect(vector=current_vector, layer=intersection_layer)
 
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
+
 
 def main():
     def create_first_medium():
