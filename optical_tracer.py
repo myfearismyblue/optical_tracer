@@ -930,7 +930,7 @@ class OpticalSystem(IOpticalSystem):
     """
 
     # default material in which optical components are exist
-    DEFAULT_CLS_MEDIUM = Material(name="Air", transmittance=0, refractive_index=1)
+    DEFAULT_CLS_MEDIUM: Material = Material(name="Air", transmittance=0, refractive_index=1)
 
     @property
     def vectors(self):
@@ -1150,9 +1150,51 @@ class IOpticalSystemBuilder(ABC):
         ...
 
 
+class OpticalSystemBuilder(IOpticalSystemBuilder):
+    """The concrete builder of optical systems"""
 
+    def __init__(self):
+        self._optical_system = None
 
+    @property
+    def optical_system(self):
+        if not isinstance(self._optical_system, OpticalSystem):
+            raise UnspecifiedFieldException(f'Optical system currently hasn''t been initialised properly. '
+                                             'Use builder.reset() to create a new optical system.')
+        return self._optical_system
 
+    @optical_system.setter
+    def optical_system(self, obj: OpticalSystem):
+        if not isinstance(obj, OpticalSystem):
+            raise UnspecifiedFieldException(f'Wrong argument type. '
+                                            f'Supposed to be OpticalSystem, but was given: {type(obj)}')
+        self._optical_system = obj
+
+    def reset(self, *, default_medium: Material = OpticalSystem.DEFAULT_CLS_MEDIUM) -> IOpticalSystem:
+        if not isinstance(default_medium, Material):
+            raise UnspecifiedFieldException(f'Wrong argument type. '
+                                            f'Supposed to be Material, but was given: {type(default_medium)}')
+        new_opt_sys = OpticalSystem(default_medium=default_medium)
+        self.optical_system = new_opt_sys
+        return new_opt_sys
+
+    def add_component(self, component: OpticalComponent):
+        pass
+
+    def create_component(self) -> OpticalComponent:
+        pass
+
+    def create_layer(self) -> Layer:
+        pass
+
+    def crate_material(self) -> Material:
+        pass
+
+    def create_vector(self) -> Vector:
+        pass
+
+    def _check_component_collision(self, component: OpticalComponent):
+        pass
 
 
 def main():
