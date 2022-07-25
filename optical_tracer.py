@@ -884,13 +884,72 @@ class DefaultOpticalComponent(OpticalComponent):
         return output_vector, intersection_layer
 
 
-class OpticalSystem:
+class IOpticalSystem(ABC):
     """
-    Entire system. Responses for propagating vector between components
+    Interface which any OpticalSystem has to have in order to:
+    1. add optical component to itself
+    2. trace the given vector through itself
+    3. store traced vector as a beam in self.vectors
     """
 
-    def __init__(self, *, default_medium: Material = Material(name="Air", transmittance=0, refractive_index=1)):
-        # FIXME: Make default here global
+    @property
+    @abstractmethod
+    def vectors(self) -> Dict[int, List[Vector]]:
+        """
+        Traced through optical system beams.
+         :return Dict[beam_id: List[node_vector0, node_vector1...]]"""
+        ...
+
+    @property
+    @abstractmethod
+    def components(self) -> List[OpticalComponent]:
+        """
+        Optical components the optical system composed of.
+        :return The list of all compnents added to system"""
+        ...
+
+    @property
+    @classmethod
+    @abstractmethod
+    def DEFAULT_CLS_MEDIUM(cls) -> Material:
+        """ The default substance in which optical components are exist"""
+        ...
+
+    @abstractmethod
+    def trace(self, vector: Vector):
+        ...
+
+    @abstractmethod
+    def add_component(self, *, component: OpticalComponent) -> None:
+        ...
+
+
+class OpticalSystem(IOpticalSystem):
+    """
+    Entire system. Responses for tracing a give vector between components, store the beam; adding components to itself
+    """
+
+    # default material in which optical components are exist
+    DEFAULT_CLS_MEDIUM = Material(name="Air", transmittance=0, refractive_index=1)
+
+    @property
+    def vectors(self):
+        return self._vectors
+
+    @vectors.setter
+    def vectors(self, value: Dict[int, List[Vector]]):
+        self._vectors = value                           # TODO: make conscious data checking here
+
+    @property
+    def components(self) -> List[OpticalComponent]:
+        return self._components
+
+    @components.setter
+    def components(self, val: List[OpticalComponent]) -> None:
+        # TODO: make actual data check here
+        self._components = val
+
+    def __init__(self, *, default_medium: Material = DEFAULT_CLS_MEDIUM):
         self._components: List[OpticalComponent] = []
         self._vectors: Dict[int, List[Vector]] = {}
         self.default_background_component: DefaultOpticalComponent = \
@@ -911,27 +970,27 @@ class OpticalSystem:
     def _compose_default_layers(self):
         """Composes a list of layers which have opposite sides of all layers in opt system"""
         ret = []
-        for component in self._components:
+        for component in self.components:
             for layer in component.get_layers():
                 ret.append(layer.reverted_layer())
         return ret
 
-    def add_component(self, *, component) -> None:
+    def add_component(self, *, component: OpticalComponent) -> None:
         # FIXME:do collision check
-        self._components.append(component)
+        self.components.append(component)
         self._add_and_compose_default_layers(self.default_background_component)
 
-    def add_initial_vector(self, *, initial_vector: Vector) -> None:
-        """Adds only initial vector of a beam."""
-        self._vectors[id(initial_vector)] = [initial_vector]
+    def _add_initial_vector(self, *, initial_vector: Vector) -> None:
+        """Adds only initial vector of a beam which is to trace."""
+        self.vectors[id(initial_vector)] = [initial_vector]
 
     def _append_to_beam(self, *, initial_vector: Vector, node_vector: Vector) -> None:
         """Adds node-vector to a beam, initiated by initial vector"""
-        self._vectors[id(initial_vector)].append(node_vector)
+        self.vectors[id(initial_vector)].append(node_vector)
 
     def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
         """Return the component of system which contains given vector or raises VectorOutOfComponentException"""
-        for component in self._components:
+        for component in self.components:
             if component.check_if_vector_is_inside(vector=vector):
                 return component
         raise VectorOutOfComponentException('Vector is out of any component')
@@ -985,14 +1044,14 @@ class OpticalSystem:
         ret = (normal_angle + beta) % (2 * pi)  # expecting output in [0, 360)
         return ret
 
-    def get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
+    def _get_containing_component_or_default(self, *, vector: Vector) -> OpticalComponent:
         """Returns thc component of system which contains given vector or returns default background"""
         try:
             return self._get_containing_component(vector=vector)
         except VectorOutOfComponentException:
             return self.default_background_component
 
-    def refract(self, *, vector: Vector, layer: Layer, prev_index: float, next_index: float) -> Vector:
+    def _refract(self, *, vector: Vector, layer: Layer, prev_index: float, next_index: float) -> Vector:
         if NO_REFRACTION:
             return vector
 
@@ -1002,7 +1061,7 @@ class OpticalSystem:
                                                          prev_index=prev_index, next_index=next_index)
         return refracted_vector
 
-    def reflect(self, *, vector: Vector, layer: Layer) -> Vector:
+    def _reflect(self, *, vector: Vector, layer: Layer) -> Vector:
         if N0_REFLECTION:
             return vector
 
@@ -1024,29 +1083,29 @@ class OpticalSystem:
         #   propagate vector to a boundary of the component
         # end of iteration
         current_vector = initial_vector = vector
-        self.add_initial_vector(initial_vector=initial_vector)
-        current_component = self.get_containing_component_or_default(vector=current_vector)
+        self._add_initial_vector(initial_vector=initial_vector)
+        current_component = self._get_containing_component_or_default(vector=current_vector)
         while True:
             try:  # FIXME:  make this outer func.
                 current_vector, intersection_layer = current_component.propagate_vector(input_vector=current_vector,
-                                                                                        components=self._components)
+                                                                                        components=self.components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    print(f'Tracing is finished for vector: {self._vectors[id(initial_vector)][0]}. '
-                          f'Last point is {self._vectors[id(initial_vector)][-1].initial_point}')
-                return list(self._vectors.values())[0]
+                    print(f'Tracing is finished for vector: {self.vectors[id(initial_vector)][0]}. '
+                          f'Last point is {self.vectors[id(initial_vector)][-1].initial_point}')
+                return list(self.vectors.values())[0]
             prev_index = current_component.material.refractive_index
-            current_component = self.get_containing_component_or_default(vector=current_vector)
+            current_component = self._get_containing_component_or_default(vector=current_vector)
             next_index = current_component.material.refractive_index
 
             try:
-                current_vector = self.refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
-                                              next_index=next_index)
+                current_vector = self._refract(vector=current_vector, layer=intersection_layer, prev_index=prev_index,
+                                               next_index=next_index)
             except TotalInnerReflectionException as e:
                 if DEBUG:
                     warn(f'\nTotal internal reflection is occurred for '
-                         f'{self._vectors[id(initial_vector)][0]}.')
-                current_vector = self.reflect(vector=current_vector, layer=intersection_layer)
+                         f'{self.vectors[id(initial_vector)][0]}.')
+                current_vector = self._reflect(vector=current_vector, layer=intersection_layer)
 
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
 
@@ -1105,6 +1164,7 @@ def main():
         if 52 <= theta < 53 and True:  #
             v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
             opt_sys.trace(vector=v)
+    print(opt_sys.vectors)
     return opt_sys
 
 

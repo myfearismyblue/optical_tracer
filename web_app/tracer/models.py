@@ -226,7 +226,7 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
 
     def _fetch_optical_components_layers(self) -> List[Layer]:
         res = []
-        for component in self._optical_system._components:
+        for component in self._optical_system.components:
             [res.append(l) for l in component._layers]
         return res
 
@@ -261,7 +261,7 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
     def _fetch_boundaries(self) -> List[Callable]:
         """Returns all boundaries of all layers in a whole optical system as a list of callables"""
         res = []
-        for comp in self._optical_system._components:
+        for comp in self._optical_system.components:
             for l in comp._layers:
                 res.append(l.boundary)
         return res
@@ -321,7 +321,7 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
             canvas_z, canvas_y = self._convert_opticalcoords_to_canvascoords(opt_z, opt_y)
             return canvas_z, canvas_y
 
-        tmp_beams = self._optical_system._vectors  # {beam_id: [Vectors]}
+        tmp_beams = self._optical_system.vectors  # {beam_id: [Vectors]}
         beams = dict()
         for id, vector_list in tmp_beams.items():
             beams[id] = []

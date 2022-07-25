@@ -205,7 +205,7 @@ class Grapher:
 
         def _fetch_boundaries():
             res = []
-            for comp in self._optical_system._components:
+            for comp in self._optical_system.components:
                 for l in comp._layers:
                     res.append(l.boundary)
             return res
