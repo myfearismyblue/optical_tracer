@@ -701,7 +701,7 @@ class OpticalComponent:
     Intersection of layers which are to bound optical material
     """
 
-    def __init__(self, *, name: str, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS) -> object:
+    def __init__(self, *, name: str, dimensions: Tuple[float] = OPT_SYS_DIMENSIONS):
         self._name: str = name
         self._layers: Optional[List[Layer]] = []
         self._material: Optional[Material] = None
@@ -905,14 +905,14 @@ class IOpticalSystem(ABC):
     def components(self) -> List[OpticalComponent]:
         """
         Optical components the optical system composed of.
-        :return The list of all compnents added to system"""
+        :return The list of all components added to system"""
         ...
 
     @property
     @classmethod
     @abstractmethod
     def DEFAULT_CLS_MEDIUM(cls) -> Material:
-        """ The default substance in which optical components are exist"""
+        """ The default substance in which optical components are exist should be known"""
         ...
 
     @abstractmethod
@@ -1108,6 +1108,51 @@ class OpticalSystem(IOpticalSystem):
                 current_vector = self._reflect(vector=current_vector, layer=intersection_layer)
 
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
+
+
+class IOpticalSystemBuilder(ABC):
+    """Interface for any OptSys builder"""
+
+    @property
+    @abstractmethod
+    def optical_system(self):
+        ...
+
+    @abstractmethod
+    def reset(self):
+        """Clear all components from optical system"""
+        ...
+
+    @abstractmethod
+    def add_component(self, component: OpticalComponent):
+        """Appends given optical component to the system"""
+        ...
+
+    @abstractmethod
+    def create_component(self) -> OpticalComponent:
+        ...
+
+    @abstractmethod
+    def create_layer(self) -> Layer:
+        ...
+
+    @abstractmethod
+    def crate_material(self) -> Material:
+        ...
+
+    @abstractmethod
+    def create_vector(self) -> Vector:
+        ...
+
+    @abstractmethod
+    def _check_component_collision(self, component: OpticalComponent):
+        """Checks if the component to add has collisions with other components in current system"""
+        ...
+
+
+
+
+
 
 
 def main():
