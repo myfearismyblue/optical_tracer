@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import wraps
 from enum import auto, Enum
 from math import asin, atan, pi, sin, sqrt, tan, isnan
-from typing import Callable, Dict, Optional, List, Tuple, Union
+from typing import Callable, Dict, Optional, List, Tuple, Union, Iterable
 from warnings import warn
 
 from scipy.misc import derivative
@@ -56,6 +56,11 @@ class NoIntersectionWarning(DomainBaseException):
 
 class TotalInnerReflectionException(DomainBaseException):
     """Raises when refraction couldn't be provided"""
+    pass
+
+
+class ComponentCollisionException(DomainBaseException):
+    """Raises when two components has intersection"""
     pass
 
 
@@ -721,7 +726,7 @@ class OpticalComponent:
 
     @property
     def material(self):
-        if self._material is None:
+        if not isinstance(self._material, Material):
             raise UnspecifiedFieldException
         return self._material
 
@@ -1129,24 +1134,43 @@ class IOpticalSystemBuilder(ABC):
         ...
 
     @abstractmethod
-    def create_component(self) -> OpticalComponent:
+    def create_component(self, *, name: str, dimensions: Tuple, layers: Iterable[Layer], material: Material) -> OpticalComponent:
         ...
 
     @abstractmethod
-    def create_layer(self) -> Layer:
+    def create_layer(self, *, name: str, boundary: Callable, side: Side) -> Layer:
         ...
 
     @abstractmethod
-    def crate_material(self) -> Material:
+    def crate_material(self, *, name: str, transmittance: float, refractive_index:float) -> Material:
         ...
 
     @abstractmethod
-    def create_vector(self) -> Vector:
+    def create_vector(self, *,  initial_point: Point, lum:float, w_length:float, theta:float, psi:float) -> Vector:
+        ...
+
+    @abstractmethod
+    def create_point(self, *args, **kwargs):
         ...
 
     @abstractmethod
     def _check_component_collision(self, component: OpticalComponent):
         """Checks if the component to add has collisions with other components in current system"""
+        ...
+
+
+class IComponentCollision(ABC):
+    """The type of optical components' collision intersection"""
+
+    @abstractmethod
+    @property
+    def is_occurred(self) -> bool:
+        ...
+
+    @abstractmethod
+    @property
+    def details(self):
+        # TODO: consider realisation about this
         ...
 
 
@@ -1179,21 +1203,52 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
         return new_opt_sys
 
     def add_component(self, component: OpticalComponent):
-        pass
+        """Checks if adding is ok and there is no collisions and adds component to optical_system.components"""
 
-    def create_component(self) -> OpticalComponent:
-        pass
+        collision: IComponentCollision = self._check_component_collision(component)
+        if collision.is_occurred:
+            raise ComponentCollisionException(f'Adding component is impossible because of collision. '
+                                              f'Details: {collision.details}')
 
-    def create_layer(self) -> Layer:
-        pass
+        self.optical_system.add_component(component=component)
 
-    def crate_material(self) -> Material:
-        pass
+    def create_component(self, *, name, dimensions=OPT_SYS_DIMENSIONS, layers, material) -> OpticalComponent:
 
-    def create_vector(self) -> Vector:
-        pass
+        # TODO. make this aggregation through interface
+        # TODO: make creation through builder
+        new_component = OpticalComponent(name=name, dimensions=dimensions)
+        new_component.material = material
+        for l in layers:
+            new_component.add_layer(layer=l)
+        return new_component
 
-    def _check_component_collision(self, component: OpticalComponent):
+    def create_layer(self, *, name: str, boundary: Callable, side: Side) -> Layer:
+        new_layer = Layer(name=name, boundary=boundary, side=side)
+        return new_layer
+
+    def crate_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
+        new_material = Material(name=name, transmittance=transmittance, refractive_index=refractive_index)
+        return new_material
+
+    def create_vector(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float) -> Vector:
+        new_vector = Vector(initial_point=initial_point, lum=lum, w_length=w_length, theta=theta, psi=psi)
+        return new_vector
+
+    def create_point(self, *args, **kwargs):
+        """
+        Gets the first tuple of floats of len==3 in positional args: (x: float, y: float, z:float),
+        or keyword arguments for each dimension and returns Point cls object
+        """
+        for arg in args:
+            if len(arg) == 3 and all((isinstance(el, (int, float)) for el in arg)):
+                coords = {'x': arg[0], 'y': arg[1], 'z': arg[2]}
+                return Point(**coords)
+
+        if all((dim in kwargs for dim in ['x', 'y', 'z'])):
+            coords ={dim: kwargs[dim] for dim in ['x', 'y', 'z']}   # filter kwargs with certain keys
+            return Point(**coords)
+
+    def _check_component_collision(self, component: OpticalComponent) -> IComponentCollision:
         pass
 
 
