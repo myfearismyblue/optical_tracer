@@ -169,7 +169,9 @@ class VectorCheckStrategy(BaseCheckStrategy):
     @staticmethod
     def validate_initial_point(kwargs):
         if not isinstance(kwargs.get('initial_point'), Point):
-            raise UnspecifiedFieldException(f'initial_point kwarg is not type Point')
+            _ = 'initial_point'
+            raise UnspecifiedFieldException(f'initial_point kwarg has to be type Point, '
+                                            f'but was given {type(kwargs.get(_))}')
         return kwargs
 
     @staticmethod
@@ -726,8 +728,8 @@ class OpticalComponent:
 
     @property
     def material(self):
-        if not isinstance(self._material, Material):
-            raise UnspecifiedFieldException
+        if self._material is None:
+            raise UnspecifiedFieldException(f'Material is not specified: {self._material}')
         return self._material
 
     @material.setter
@@ -756,7 +758,8 @@ class OpticalComponent:
             vector_is_on_current_bound = vector_point_difference <= vector.w_length * NANOMETRE / 4
             if vector_is_on_current_bound:
                 return layer
-        raise VectorNotOnBoundaryException
+        raise VectorNotOnBoundaryException(f'Tried to get boundary for {vector}, '
+                                           f'but the vector is not at any of layers'' boundaries')
 
     def check_if_vector_on_boundary(self, *, vector: Vector) -> bool:
         """Check if the given vector is located at the boundary"""
@@ -789,7 +792,8 @@ class OpticalComponent:
         """
         found_intersections = {}
         if not self.check_if_point_is_inside(point=vector.initial_point):
-            raise VectorOutOfComponentException
+            raise VectorOutOfComponentException(f'Tried to find intersection of {vector} with {self}. '
+                                                f'But seems that vector is located out of this component.')
         for layer in self._layers:
             try:
                 intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
@@ -998,7 +1002,7 @@ class OpticalSystem(IOpticalSystem):
         for component in self.components:
             if component.check_if_vector_is_inside(vector=vector):
                 return component
-        raise VectorOutOfComponentException('Vector is out of any component')
+        raise VectorOutOfComponentException(f'Vector is out of any component: {vector}')
 
     @staticmethod
     def _get_refract_angle(*, vector_angle: float, normal_angle: float,
