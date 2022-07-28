@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import wraps
 from enum import auto, Enum
 from math import asin, atan, pi, sin, sqrt, tan, isnan
-from typing import Callable, Dict, Optional, List, Tuple, Union, Iterable
+from typing import Iterable, Callable, Dict, Optional, List, Tuple, Union
 from warnings import warn
 
 from scipy.misc import derivative
@@ -92,6 +92,46 @@ class ICheckable(ABC):
         """Throwing only for attrs starts with _underscore"""
         [setattr(self, attr, kwargs[attr[1:]]) if attr.startswith('_') else setattr(self, attr, kwargs[attr])
          for attr in self.__slots__]
+
+
+class IComponentCollision(ABC):
+    """The type of optical components' collision intersection"""
+
+    @property
+    @abstractmethod
+    def is_occurred(self) -> bool:
+        ...
+
+    @property
+    @abstractmethod
+    def details(self):
+        # TODO: consider realisation about this
+        ...
+
+
+class ComponentCollision(IComponentCollision):
+    """Dataclass of collision between two components in one optsystem"""
+    # FIXME: this is just a stub. Rewrite it's behaviour
+
+    def __init__(self):
+        self._is_occurred = None
+        self._details = None
+
+    @property
+    def is_occurred(self) -> bool:
+        return self._is_occurred
+
+    @is_occurred.setter
+    def is_occurred(self, val):
+        self._is_occurred = val
+
+    @property
+    def details(self) -> bool:
+        return self._details
+
+    @details.setter
+    def details(self, val):
+        self._details = val
 
 
 class BaseCheckStrategy(ABC):
@@ -947,7 +987,7 @@ class OpticalSystem(IOpticalSystem):
 
     @vectors.setter
     def vectors(self, value: Dict[int, List[Vector]]):
-        self._vectors = value                           # TODO: make conscious data checking here
+        self._vectors = value  # TODO: make conscious data checking here
 
     @property
     def components(self) -> List[OpticalComponent]:
@@ -985,9 +1025,19 @@ class OpticalSystem(IOpticalSystem):
         return ret
 
     def add_component(self, *, component: OpticalComponent) -> None:
-        # FIXME:do collision check
+        collision: IComponentCollision = self._check_component_collision(component=component)
+        if collision.is_occurred:
+            raise ComponentCollisionException(f'Adding component is impossible because of collision. '
+                                              f'Details: {collision.details}')
         self.components.append(component)
         self._add_and_compose_default_layers(self.default_background_component)
+
+    def _check_component_collision(self, *, component: OpticalComponent) -> IComponentCollision:
+        warn('NOT IMPLEMENTED COLLISION CHECK')
+        collision = ComponentCollision()
+        collision.is_occurred = False
+        collision.details = 'Mock'
+        return collision
 
     def _add_initial_vector(self, *, initial_vector: Vector) -> None:
         """Adds only initial vector of a beam which is to trace."""
@@ -1275,8 +1325,8 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
             coords = {dim: kwargs[dim] for dim in ['x', 'y', 'z']}  # filter kwargs with certain keys
             return Point(**coords)
 
-    def _check_component_collision(self, component: OpticalComponent) -> IComponentCollision:
-        pass
+        raise UnspecifiedFieldException('Wrong arguments. Supposed to be Tuple[float, float, float] in args or '
+                                        '{''x'': float, ''y'': float, ''z'': float} in kwargs,  but was given')
 
 
 def main():
