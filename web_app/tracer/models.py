@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import sqrt, atan, pi
 from typing import Tuple, Callable, List, Dict, Iterable
@@ -8,16 +9,18 @@ import sys
 sys.path.append(os.path.abspath('..'))  # magic to make optical_tracer to be found
 
 from django.db import models
-from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point
-
-
+from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, OpticalSystemBuilder
 
 
 @dataclass
 class ContextRequest:
     """Interface for requesting different contexts for a view from GraphService"""
+    contexts_list: List[str]               # list of certain contexts which are supposed to be drawn with GraphService
+    graph_info: Dict                       # common info for GraphService like dimensions of canvas etc.
+
+@dataclass
+class Context:
     contexts_list: List[str]
-    graph_info: Dict
 
 
 class BoundaryView(models.Model):
@@ -59,14 +62,25 @@ class VectorView(models.Model):
     beam = models.ForeignKey(BeamView, on_delete=models.CASCADE)
 
 
-class GraphService:  # FIXME: looks like a godclass. split it with responsibilities
+class IGraphService(ABC):
+    @abstractmethod
+    def build_optical_system(self):     # TODO: add contract here
+        """Initing concrete optical system"""
+        ...
+
+    @abstractmethod
+    def prepare_contexts(self, contexts_request: ContextRequest) -> Context:
+
+
+class GraphService(IGraphService):  # FIXME: looks like a godclass. split it with responsibilities
     CANVAS_WIDTH = 1600  # px
     CANVAS_HEIGHT = 1200  # px
     SCALE = 1  # mm/px
     OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __init__(self, contexts_request: ContextRequest):
-        self._canvas_dimensions = contexts_request.graph_info['canvas_width'], contexts_request.graph_info['canvas_height']
+        self._canvas_dimensions = contexts_request.graph_info['canvas_width'], contexts_request.graph_info[
+            'canvas_height']
 
         # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
         self._offset = self._canvas_dimensions[0] // 3, self._canvas_dimensions[1] // 3
@@ -79,9 +93,10 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
         self._height_draw_ranges = self._offset[1] - self._canvas_dimensions[1], self._offset[1]
         self._width_draw_ranges = -self._offset[0], self._canvas_dimensions[0] - self._offset[0]
 
-    def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:  # {'context_name': {id: 'conext',
-                                                                                      #                   id2: 'context2}
-                                                                                      #    ...        }
+    def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:  # {'context_name':
+        # {html_elem_id1: 'context1',
+        #  html_elem_id2: 'context2}
+        #    ...        }
         def _stringify_points_for_template(pts: Iterable) -> str:
             """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
             res = ''
@@ -132,7 +147,7 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
     def make_initials(self):
         """Forwarding all objects to Django """
         self._clear_db()
-        self._optical_system = self.build_optical_system()
+        self.build_optical_system()
         self._push_layers_to_db()
         self._push_axes_to_db()
         self._push_beams_to_db()
@@ -145,62 +160,50 @@ class GraphService:  # FIXME: looks like a godclass. split it with responsibilit
 
     @staticmethod
     def build_optical_system():
-        """Creates an Optical System"""
+        """Uses builder to creates an Optical System"""
+        builder = OpticalSystemBuilder()
 
-        def create_first_medium():
-            first_left_bound = Layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT, name='First-left bound')  #
-            # first_right_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.LEFT, name='First-right bound')
-            first_material = Material(name='Glass', transmittance=0.9, refractive_index=1.1)
-            first_medium = OpticalComponent(name='First')
-            first_medium.add_layer(layer=first_left_bound)
-            # first_medium.add_layer(layer=first_right_bound)
-            first_medium.material = first_material
-            return first_medium
+        first_comp_right_boundary = builder.create_layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT, name='First-right bound')
+        first_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.1)
+        first_lense = builder.create_component(name='First lense',
+                                               layers=[first_comp_right_boundary],
+                                               material=first_comp_mat)
 
-        def create_second_medium():
-            second_left_bound = Layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT, name='Second-left bound')
-            second_right_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT, name='Second-right bound')
-            second_material = Material(name='Glass', transmittance=0.9, refractive_index=1.2)
-            second_medium = OpticalComponent(name='Second')
-            second_medium.add_layer(layer=second_left_bound)
-            second_medium.add_layer(layer=second_right_bound)
-            second_medium.material = second_material
-            return second_medium
+        sec_comp_left_boundary= builder.create_layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT, name='Second-left bound')
+        sec_comp_sec_layer = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT, name='Second-right bound')
+        sec_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.2)
+        second_lense = builder.create_component(name='Second lense',
+                                                layers=[sec_comp_left_boundary, sec_comp_sec_layer],
+                                                material=sec_comp_mat)
 
-        def create_third_medium():
-            third_left_bound = Layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT, name='Third-left bound')
-            third_right_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT, name='Third-right bound')
-            third_material = Material(name='Glass', transmittance=0.9, refractive_index=1.3)
-            third_medium = OpticalComponent(name='Third')
-            third_medium.add_layer(layer=third_left_bound)
-            third_medium.add_layer(layer=third_right_bound)
-            third_medium.material = third_material
-            return third_medium
+        thrd_comp_left_boundary = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT, name='Third-left bound')
+        thrd_comp_right_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT, name='Third-right bound')
+        thrd_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.3)
+        third_lense = builder.create_component(name='Third lense',
+                                                layers=[thrd_comp_left_boundary, thrd_comp_right_boundary ],
+                                                material=thrd_comp_mat)
 
-        def create_fourth_medium():
-            fourth_left_bound = Layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT, name='Fourth-left bound')
-            fourth_material = Material(name='Glass', transmittance=0.9, refractive_index=1.4)
-            fourth_medium = OpticalComponent(name='Fourth')
-            fourth_medium.add_layer(layer=fourth_left_bound)
-            fourth_medium.material = fourth_material
-            return fourth_medium
+        fourth_comp_left_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT, name='Fourth-left bound')
+        fourth_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.4)
+        fourth_lense = builder.create_component(name='Fourth lense',
+                                                layers=[fourth_comp_left_boundary,],
+                                                material=fourth_comp_mat)
 
-        opt_sys = OpticalSystem()
-        first_medium, second_medium, third_medium, fourth_medium = (medium for medium in (create_first_medium(),
-                                                                                          create_second_medium(),
-                                                                                          create_third_medium(),
-                                                                                          create_fourth_medium()
-                                                                                          )
-                                                                    )
-        [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
-        in_point = Point(x=0, y=50, z=250)
+        builder.reset()
+
+        [builder.add_components(component=comp) for comp in (first_lense, second_lense, third_lense, fourth_lense)]
+
+        initial_point = builder.create_point(x=0, y=50, z=250)
+
         resolution = 10  # vectors per circle
-        for theta in range(
-                int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
+        for theta in range(int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
             if True:  # 52 <= theta < 53 and
-                v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
-                opt_sys.trace(vector=v)
-        return opt_sys
+                v = builder.create_vector(initial_point=initial_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
+                builder.vectors.append(v)
+
+        builder.trace_all()
+
+        return builder.optical_system
 
     def _push_layers_to_db(self):
         """
