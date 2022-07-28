@@ -1127,18 +1127,29 @@ class IOpticalSystemBuilder(ABC):
     def optical_system(self):
         ...
 
+    @property
+    @abstractmethod
+    def vectors(self):
+        ...
+
     @abstractmethod
     def reset(self):
         """Clear all components from optical system"""
         ...
 
     @abstractmethod
-    def add_component(self, component: OpticalComponent):
-        """Appends given optical component to the system"""
+    def trace(self, *, vector: Vector):
+        """Wrapping around optical_system.trace()"""
         ...
 
     @abstractmethod
-    def create_component(self, *, name: str, dimensions: Tuple, layers: Iterable[Layer], material: Material) -> OpticalComponent:
+    def add_components(self, components: Union[OpticalComponent, Iterable[OpticalComponent]]):
+        """Appends given optical component or components to the system"""
+        ...
+
+    @abstractmethod
+    def create_component(self, *, name: str, dimensions: Tuple, layers: Iterable[Layer],
+                         material: Material) -> OpticalComponent:
         ...
 
     @abstractmethod
@@ -1146,35 +1157,15 @@ class IOpticalSystemBuilder(ABC):
         ...
 
     @abstractmethod
-    def crate_material(self, *, name: str, transmittance: float, refractive_index:float) -> Material:
+    def create_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
         ...
 
     @abstractmethod
-    def create_vector(self, *,  initial_point: Point, lum:float, w_length:float, theta:float, psi:float) -> Vector:
+    def create_vector(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float) -> Vector:
         ...
 
     @abstractmethod
     def create_point(self, *args, **kwargs):
-        ...
-
-    @abstractmethod
-    def _check_component_collision(self, component: OpticalComponent):
-        """Checks if the component to add has collisions with other components in current system"""
-        ...
-
-
-class IComponentCollision(ABC):
-    """The type of optical components' collision intersection"""
-
-    @abstractmethod
-    @property
-    def is_occurred(self) -> bool:
-        ...
-
-    @abstractmethod
-    @property
-    def details(self):
-        # TODO: consider realisation about this
         ...
 
 
@@ -1183,12 +1174,13 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
 
     def __init__(self):
         self._optical_system = None
+        self._vectors = []
 
     @property
     def optical_system(self):
         if not isinstance(self._optical_system, OpticalSystem):
             raise UnspecifiedFieldException(f'Optical system currently hasn''t been initialised properly. '
-                                             'Use builder.reset() to create a new optical system.')
+                                            'Use builder.reset() to create a new optical system.')
         return self._optical_system
 
     @optical_system.setter
@@ -1198,23 +1190,54 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
                                             f'Supposed to be OpticalSystem, but was given: {type(obj)}')
         self._optical_system = obj
 
-    def reset(self, *, default_medium: Material = OpticalSystem.DEFAULT_CLS_MEDIUM) -> IOpticalSystem:
+    @property
+    def vectors(self):
+        return self._vectors
+
+    @vectors.setter
+    def vectors(self, vectors: Union[Vector, Iterable[Vector]]):
+        if isinstance(vectors, Vector):
+            self._vectors.append(vectors)
+        elif isinstance(vectors, Iterable):
+            self._vectors.extend(vectors)
+        else:
+            raise UnspecifiedFieldException(f'Wrong argument type. '
+                                            f'Supposed to be Vector or iterable of Vectors, but was given: {type(vectors)}')
+
+    def reset(self, *, default_medium: Material = OpticalSystem.DEFAULT_CLS_MEDIUM):
         if not isinstance(default_medium, Material):
             raise UnspecifiedFieldException(f'Wrong argument type. '
                                             f'Supposed to be Material, but was given: {type(default_medium)}')
         new_opt_sys = OpticalSystem(default_medium=default_medium)
         self.optical_system = new_opt_sys
-        return new_opt_sys
+        self.vectors = list()
 
-    def add_component(self, component: OpticalComponent):
-        """Checks if adding is ok and there is no collisions and adds component to optical_system.components"""
+    def trace(self, *, vectors: Union[Vector, Iterable[Vector]]):
+        opt_sys = self.optical_system
+        if isinstance(vectors, Vector):
+            opt_sys.trace(vector=vectors)
+        elif isinstance(vectors, Iterable):
+            for v in vectors:
+                opt_sys.trace(vector=v)
+        else:
+            raise UnspecifiedFieldException(f'Wrong argument type. '
+                                            f'Supposed to be Vector or iterable of Vectors, but was given: {type(vectors)}')
 
-        collision: IComponentCollision = self._check_component_collision(component)
-        if collision.is_occurred:
-            raise ComponentCollisionException(f'Adding component is impossible because of collision. '
-                                              f'Details: {collision.details}')
+    def trace_all(self):
+        opt_sys = self.optical_system
+        self.trace(vectors=self.vectors)
 
-        self.optical_system.add_component(component=component)
+    def add_components(self, components: Union[OpticalComponent, Iterable[OpticalComponent]]):
+        """Checks if adding is ok and adds component to optical_system.components"""
+        if isinstance(components, OpticalComponent):
+            self.optical_system.add_component(component=components)
+        elif isinstance(components, Iterable):
+            for c in components:
+                self.optical_system.add_component(component=c)
+        else:
+            raise UnspecifiedFieldException(f'Wrong argument type. '
+                                            f'Supposed to be OpticalComponent or iterable of OpticalComponents, '
+                                            f'but was given: {type(components)}')
 
     def create_component(self, *, name, dimensions=OPT_SYS_DIMENSIONS, layers, material) -> OpticalComponent:
 
@@ -1230,7 +1253,7 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
         new_layer = Layer(name=name, boundary=boundary, side=side)
         return new_layer
 
-    def crate_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
+    def create_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
         new_material = Material(name=name, transmittance=transmittance, refractive_index=refractive_index)
         return new_material
 
@@ -1249,7 +1272,7 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
                 return Point(**coords)
 
         if all((dim in kwargs for dim in ['x', 'y', 'z'])):
-            coords ={dim: kwargs[dim] for dim in ['x', 'y', 'z']}   # filter kwargs with certain keys
+            coords = {dim: kwargs[dim] for dim in ['x', 'y', 'z']}  # filter kwargs with certain keys
             return Point(**coords)
 
     def _check_component_collision(self, component: OpticalComponent) -> IComponentCollision:
