@@ -12,6 +12,16 @@ from django.db import models
 from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, OpticalSystemBuilder
 
 
+class UserInfrastructuralBaseException(Exception):
+    """The base for django-models exceptions"""
+    ...
+
+
+class UnregistredContextException(UserInfrastructuralBaseException):
+    """Raises when unknown context requested to be prepared"""
+    ...
+
+
 @dataclass
 class ContextRequest:
     """Interface for requesting different contexts for a view from GraphService"""
