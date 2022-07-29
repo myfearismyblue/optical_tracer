@@ -30,7 +30,8 @@ class ContextRequest:
 
 @dataclass
 class Context:
-    contexts_list: List[str]
+    context_name: str
+    value: Dict
 
 
 class BoundaryView(models.Model):
