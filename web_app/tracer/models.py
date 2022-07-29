@@ -177,7 +177,9 @@ class IGraphService(ABC):
         ...
 
     @abstractmethod
-    def prepare_contexts(self, contexts_request: ContextRequest) -> Context:
+    def prepare_contexts(self, contexts_request: ContextRequest) -> List[Context]:
+        """Using optical system make some contexts to be thrown in template"""
+        ...
 
 
 class GraphService(IGraphService):  # FIXME: looks like a godclass. split it with responsibilities
@@ -201,56 +203,21 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         self._height_draw_ranges = self._offset[1] - self._canvas_dimensions[1], self._offset[1]
         self._width_draw_ranges = -self._offset[0], self._canvas_dimensions[0] - self._offset[0]
 
-    def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:  # {'context_name':
-        # {html_elem_id1: 'context1',
-        #  html_elem_id2: 'context2}
-        #    ...        }
-        def _stringify_points_for_template(pts: Iterable) -> str:
-            """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
-            res = ''
-            for p in pts:
-                if hasattr(p, 'x0'):  # TODO: Refactor this shit
-                    current_element = f'{p.x0}, {p.y0}'
-                else:
-                    current_element = f'{p[0]}, {p[1]}'
-                res = ' '.join((res, current_element))  # _space_ here to separate x1, y1_space_x2, y2
-            return res
+    def prepare_contexts(self, contexts_request: ContextRequest) -> List[Context]:
+        def _check_context_registered(contexts_request: ContextRequest):
+            registered_contexts = ContextRegistry().get_registered_contexts()
+            if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
+                unknown_context = list(set(contexts_request.contexts_list).difference(registered_contexts))
+                raise UnregistredContextException(f'Requested context is unknown: {unknown_context}. '
+                                                  f'Registered contexts: {registered_contexts}')
 
-        def prepare_context_boundaries(lines_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
-            """Fetches all boundaries from models.BoundaryView. For each one fetches points to draw from model.BoundaryPoint.
-            Stringifys them and appends to context to be forwarded to template"""
-            for line in BoundaryView.objects.all():
-                points = _stringify_points_for_template(self._graph_objects[line.memory_id])
-                lines_points_context[line.memory_id] = points
-            return lines_points_context
-
-        def prepare_context_axes(axis_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
-            """Fetches axes from models.AxisView and prepares context to render"""
-            for axis in AxisView.objects.all():
-                if axis.direction in ['down', 'right']:
-                    points = f'{axis.x0}, {axis.y0} {axis.x1}, {axis.y1}'
-                elif axis.direction in ['up', 'left']:
-                    points = f'{axis.x1}, {axis.y1} {axis.x0}, {axis.y0}'
-                else:
-                    raise ValueError(f'Wrong direction type in {axis}: {axis.direction}')
-                axis_points_context[axis.memory_id] = points
-            return axis_points_context
-
-        def prepare_context_beams(beams_points_context: Dict[int, str] = dict()) -> Dict[int, str]:
-            """
-            Fetches beams from models.BeamView. For each beam gets it's points from models.VectorView.
-            Stringifys them and appends to context to be forwarded to template
-            """
-            for beam in BeamView.objects.all():
-                points = _stringify_points_for_template(VectorView.objects.filter(beam=beam.pk))
-                beams_points_context[beam.memory_id] = points
-            return beams_points_context
-
+        _check_context_registered(contexts_request)
+        contexts = []
         for item in contexts_request.contexts_list:
-            ...
-
-        context = []
-        return context
+            itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
+            cont = itemPrepareStrategy().prepare(contexts_request)
+            contexts.append(cont)
+        return contexts
 
     def make_initials(self):
         """Forwarding all objects to Django """
