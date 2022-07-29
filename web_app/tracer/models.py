@@ -73,6 +73,103 @@ class VectorView(models.Model):
     beam = models.ForeignKey(BeamView, on_delete=models.CASCADE)
 
 
+class PrepareContextBaseStrategy(ABC):
+    """Base class for different strategies preparing various objects' context for template """
+    __context_name: str
+
+    def __init__(self):
+        self.context = Context(context_name=self.__context_name, value={})
+
+    @abstractmethod
+    def prepare(self, context_request: ContextRequest) -> Context:
+        ...
+
+
+def _stringify_points_for_template(points: Iterable) -> str:
+    """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
+    res = ''
+    for p in points:
+        if hasattr(p, 'x0'):  # TODO: Refactor this shit
+            current_element = f'{p.x0}, {p.y0}'
+        else:
+            current_element = f'{p[0]}, {p[1]}'
+        res = ' '.join((res, current_element))  # _space_ here to separate x1, y1_space_x2, y2
+    return res
+
+
+class BoundariesPrepareContextStrategy(PrepareContextBaseStrategy):
+    """
+    Describes the way in which template context for drawning OpticalComponent boundaries, material etc. should be created
+    """
+    __context_name = 'boundaries_context'
+
+    def prepare(self, context_request: ContextRequest) -> Context:
+        """
+        Fetches all boundaries from models.BoundaryView. For each one fetches points to draw from model.BoundaryPoint.
+        Stringifys them and appends to context to be forwarded to template
+        """
+
+        for boundary in BoundaryView.objects.all():
+            points = _stringify_points_for_template(self._graph_objects[boundary.memory_id])
+            raise NotImplementedError(f'Points hat to be fetched somehow')
+            self.context.value[boundary.memory_id] = points
+        return self.context
+
+
+class AxisPrepareContextStrategy(PrepareContextBaseStrategy):
+    """Describes the way in which template context for drawning optical axis should be created"""
+    __context_name = 'axis_context'
+
+    def prepare(self, context_request: ContextRequest) -> Context:
+        for axis in AxisView.objects.all():
+            if axis.direction in ['down', 'right']:
+                points = f'{axis.x0}, {axis.y0} {axis.x1}, {axis.y1}'
+            elif axis.direction in ['up', 'left']:
+                points = f'{axis.x1}, {axis.y1} {axis.x0}, {axis.y0}'
+            else:
+                raise ValueError(f'Wrong direction type in {axis}: {axis.direction}')
+            self.context.value[axis.memory_id] = points
+        return self.context
+
+
+class BeamsPrepareContextStrategy(PrepareContextBaseStrategy):
+    """Describes the way in which template context for drawning rays should be created"""
+    __context_name = 'beams_context'
+
+    def prepare(self, context_request: ContextRequest) -> Context:
+        """
+        Fetches beams from models.BeamView. For each beam gets it's points from models.VectorView.
+        Stringifys them and appends to context to be forwarded to template
+        """
+        for beam in BeamView.objects.all():
+            points = _stringify_points_for_template(VectorView.objects.filter(beam=beam.pk))
+            self.context.value[beam.memory_id] = points
+        return self.context
+
+
+class CanvasPrepareContextStrategy(PrepareContextBaseStrategy):
+    def prepare(self, context_request: ContextRequest) -> Context:
+        pass
+
+
+@dataclass
+class ContextRegistry:
+    # FIXME: link this with ContextRequest
+    __registered_contexts = {'canvas_context': CanvasPrepareContextStrategy,
+                             'boundaries_context': BoundariesPrepareContextStrategy,
+                             'axis_context': AxisPrepareContextStrategy,
+                             'beams_context': BeamsPrepareContextStrategy}
+
+    def get_prepare_strategy(self, context_name: str) -> PrepareContextBaseStrategy:
+        if context_name not in self.__registered_contexts:
+            raise UnregistredContextException(f'Requested context is unknown: {context_name}. '
+                                              f'Registered contexts: {self.__registered_contexts}')
+        return self.__registered_contexts[context_name]
+
+    def get_registered_contexts(self):
+        return tuple(self.__registered_contexts.keys())
+
+
 class IGraphService(ABC):
     @abstractmethod
     def build_optical_system(self):     # TODO: add contract here
