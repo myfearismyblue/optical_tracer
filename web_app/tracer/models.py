@@ -219,7 +219,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         self._height_draw_ranges = self._offset[1] - self._canvas_dimensions[1], self._offset[1]
         self._width_draw_ranges = -self._offset[0], self._canvas_dimensions[0] - self._offset[0]
 
-    def prepare_contexts(self, contexts_request: ContextRequest) -> List[Context]:
+    def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:
         def _check_context_registered(contexts_request: ContextRequest):
             registered_contexts = ContextRegistry().get_registered_contexts()
             if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
@@ -227,13 +227,25 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                 raise UnregistredContextException(f'Requested context is unknown: {unknown_context}. '
                                                   f'Registered contexts: {registered_contexts}')
 
+        def _convert_context_format(context_list: List[Context]) -> Dict[str, Dict]:
+            """
+            Reshapes context format from List[Context] to {Context1.name: Context1.value, Context2.name: Context2.value...}
+            """
+            converted_context = {}
+            for current_context in context_list:
+                converted_context[current_context.name] = current_context.value
+
+            return converted_context
+
         _check_context_registered(contexts_request)
         contexts = []
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
             cont = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
             contexts.append(cont)
-        return contexts
+
+        merged_context = _convert_context_format(contexts)
+        return merged_context
 
     def make_initials(self):
         """Forwarding all objects to Django """
@@ -447,7 +459,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
     def _append_point_to_db(self, point: Tuple[int, int], model_layer) -> None:
         """Gets a point (tuple of x0, y0) and an instance of a model of layer on boundary of which point is located.
-        Checks and creates an object
+        Checks and creates an object of such point
         """
         assert len(point) == 2, f'Wrong line format: {point}'
         assert all((isinstance(coord, int) for coord in point)), f'Coords of line must be integers, ' \
