@@ -75,10 +75,6 @@ class VectorView(models.Model):
 
 class PrepareContextBaseStrategy(ABC):
     """Base class for different strategies preparing various objects' context for template """
-    __context_name: str
-
-    def __init__(self):
-        self.context = Context(context_name=self.__context_name, value={})
 
     @abstractmethod
     def prepare(self, context_request: ContextRequest) -> Context:
@@ -103,7 +99,10 @@ class BoundariesPrepareContextStrategy(PrepareContextBaseStrategy):
     """
     __context_name = 'boundaries_context'
 
-    def prepare(self, context_request: ContextRequest) -> Context:
+    def __init__(self):
+        self.context = Context(name=self.__context_name, value={})
+
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         """
         Fetches all boundaries from models.BoundaryView. For each one fetches points to draw from model.BoundaryPoint.
         Stringifys them and appends to context to be forwarded to template
@@ -120,7 +119,10 @@ class AxisPrepareContextStrategy(PrepareContextBaseStrategy):
     """Describes the way in which template context for drawning optical axis should be created"""
     __context_name = 'axis_context'
 
-    def prepare(self, context_request: ContextRequest) -> Context:
+    def __init__(self):
+        self.context = Context(name=self.__context_name, value={})
+
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         for axis in AxisView.objects.all():
             if axis.direction in ['down', 'right']:
                 points = f'{axis.x0}, {axis.y0} {axis.x1}, {axis.y1}'
@@ -136,7 +138,10 @@ class BeamsPrepareContextStrategy(PrepareContextBaseStrategy):
     """Describes the way in which template context for drawning rays should be created"""
     __context_name = 'beams_context'
 
-    def prepare(self, context_request: ContextRequest) -> Context:
+    def __init__(self):
+        self.context = Context(name=self.__context_name, value={})
+
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         """
         Fetches beams from models.BeamView. For each beam gets it's points from models.VectorView.
         Stringifys them and appends to context to be forwarded to template
@@ -148,8 +153,14 @@ class BeamsPrepareContextStrategy(PrepareContextBaseStrategy):
 
 
 class CanvasPrepareContextStrategy(PrepareContextBaseStrategy):
-    def prepare(self, context_request: ContextRequest) -> Context:
-        pass
+    __context_name = 'canvas_context'
+
+    def __init__(self):
+        self.context = Context(name=self.__context_name, value={})
+
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
+        self.context.value = context_request.graph_info
+        return self.context
 
 
 @dataclass
