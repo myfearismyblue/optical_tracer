@@ -254,37 +254,52 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         """Uses builder to creates an Optical System"""
         builder = OpticalSystemBuilder()
 
-        first_comp_right_boundary = builder.create_layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT, name='First-right bound')
+        first_comp_right_boundary = builder.create_layer(boundary=lambda y: 0 - y ** 2 / 400, side=Side.LEFT,
+                                                         name='First-right bound')
         first_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.1)
         first_lense = builder.create_component(name='First lense',
                                                layers=[first_comp_right_boundary],
                                                material=first_comp_mat)
 
-        sec_comp_left_boundary= builder.create_layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT, name='Second-left bound')
-        sec_comp_sec_layer = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT, name='Second-right bound')
+        sec_comp_left_boundary = builder.create_layer(boundary=lambda y: 100 + y ** 2 / 400, side=Side.RIGHT,
+                                                      name='Second-left bound')
+        sec_comp_sec_layer = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.LEFT,
+                                                  name='Second-right bound')
         sec_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.2)
         second_lense = builder.create_component(name='Second lense',
                                                 layers=[sec_comp_left_boundary, sec_comp_sec_layer],
                                                 material=sec_comp_mat)
 
-        thrd_comp_left_boundary = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT, name='Third-left bound')
-        thrd_comp_right_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT, name='Third-right bound')
+        thrd_comp_left_boundary = builder.create_layer(boundary=lambda y: 200 + y ** 2 / 400, side=Side.RIGHT,
+                                                       name='Third-left bound')
+        thrd_comp_right_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.LEFT,
+                                                        name='Third-right bound')
         thrd_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.3)
         third_lense = builder.create_component(name='Third lense',
-                                                layers=[thrd_comp_left_boundary, thrd_comp_right_boundary ],
-                                                material=thrd_comp_mat)
+                                               layers=[thrd_comp_left_boundary, thrd_comp_right_boundary],
+                                               material=thrd_comp_mat)
 
-        fourth_comp_left_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT, name='Fourth-left bound')
-        fourth_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.4)
+        fifth_comp_left_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT,
+                                                       name='Third-left bound')
+        fifth_comp_right_boundary = builder.create_layer(boundary=lambda y: 400 + y ** 2 / 400, side=Side.LEFT,
+                                                        name='Third-right bound')
+        fifth_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.4)
+        fifth_lense = builder.create_component(name='Third lense',
+                                               layers=[fifth_comp_left_boundary, fifth_comp_right_boundary],
+                                               material=fifth_comp_mat)
+
+        fourth_comp_left_boundary = builder.create_layer(boundary=lambda y: 400 + y ** 2 / 400, side=Side.RIGHT,
+                                                         name='Fourth-left bound')
+        fourth_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.5)
         fourth_lense = builder.create_component(name='Fourth lense',
-                                                layers=[fourth_comp_left_boundary,],
+                                                layers=[fourth_comp_left_boundary, ],
                                                 material=fourth_comp_mat)
 
         builder.reset()
 
-        [builder.add_components(component=comp) for comp in (first_lense, second_lense, third_lense, fourth_lense)]
+        builder.add_components(components=(first_lense, second_lense, third_lense, fourth_lense, fifth_lense))
 
-        initial_point = builder.create_point(x=0, y=50, z=250)
+        initial_point = builder.create_point(x=0, y=50, z=0)
 
         resolution = 10  # vectors per circle
         for theta in range(
