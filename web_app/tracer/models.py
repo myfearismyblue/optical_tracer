@@ -238,7 +238,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def make_initials(self):
         """Forwarding all objects to Django """
         self._clear_db()
-        self.build_optical_system()
+        self._optical_system = self.build_optical_system()
         self._push_layers_to_db()
         self._push_axes_to_db()
         self._push_beams_to_db()
