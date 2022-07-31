@@ -25,8 +25,9 @@ class UnregistredContextException(UserInfrastructuralBaseException):
 @dataclass
 class ContextRequest:
     """Interface for requesting different contexts for a view from GraphService"""
-    contexts_list: List[str]               # list of certain contexts which are supposed to be drawn with GraphService
-    graph_info: Dict                       # common info for GraphService like dimensions of canvas etc.
+    contexts_list: List[str]  # list of certain contexts which are supposed to be drawn with GraphService
+    graph_info: Dict  # common info for GraphService like dimensions of canvas etc. To be specified
+
 
 @dataclass
 class Context:
@@ -187,7 +188,7 @@ class ContextRegistry:
 
 class IGraphService(ABC):
     @abstractmethod
-    def build_optical_system(self):     # TODO: add contract here
+    def build_optical_system(self):  # TODO: add contract here
         """Initing concrete optical system"""
         ...
 
@@ -286,9 +287,11 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         initial_point = builder.create_point(x=0, y=50, z=250)
 
         resolution = 10  # vectors per circle
-        for theta in range(int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
+        for theta in range(
+                int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
             if True:  # 52 <= theta < 53 and
-                v = builder.create_vector(initial_point=initial_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
+                v = builder.create_vector(initial_point=initial_point, lum=1, w_length=555, theta=theta / resolution,
+                                          psi=0)
                 builder.vectors.append(v)
 
         builder.trace_all()

@@ -16,6 +16,7 @@ def index(request):
                   }
     contexts_list = ['canvas_context', 'lines_points', 'axis_points', 'beams_points']
     contexts_request = ContextRequest(contexts_list=contexts_list, graph_info=graph_info)
+
     gr_service = GraphService(contexts_request=contexts_request)
     gr_service.make_initials()
 
