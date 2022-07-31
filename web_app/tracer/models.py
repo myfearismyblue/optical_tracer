@@ -81,17 +81,17 @@ class PrepareContextBaseStrategy(ABC):
     def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         ...
 
-
-def _stringify_points_for_template(points: Iterable) -> str:
-    """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
-    res = ''
-    for p in points:
-        if hasattr(p, 'x0'):  # TODO: Refactor this shit
-            current_element = f'{p.x0}, {p.y0}'
-        else:
-            current_element = f'{p[0]}, {p[1]}'
-        res = ' '.join((res, current_element))  # _space_ here to separate x1, y1_space_x2, y2
-    return res
+    @staticmethod
+    def _stringify_points_for_template(points: Iterable) -> str:
+        """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
+        res = ''
+        for p in points:
+            if hasattr(p, 'x0'):  # TODO: Refactor this shit
+                current_element = f'{p.x0}, {p.y0}'
+            else:
+                current_element = f'{p[0]}, {p[1]}'
+            res = ' '.join((res, current_element))  # _space_ here to separate x1, y1_space_x2, y2
+        return res
 
 
 class BoundariesPrepareContextStrategy(PrepareContextBaseStrategy):
@@ -115,7 +115,7 @@ class BoundariesPrepareContextStrategy(PrepareContextBaseStrategy):
             # from domain model. I suppose sometimes it is needed to retrieve data like layers, axis etc from db,
             # but sometimes is should be calculated in a runtime. Bad idea to hardcode 'layer_points' literal directly
             layer_points = kwargs['layer_points']
-            points = _stringify_points_for_template(layer_points[boundary.memory_id])
+            points = self._stringify_points_for_template(layer_points[boundary.memory_id])
             self.context.value[boundary.memory_id] = points
         return self.context
 
@@ -152,7 +152,7 @@ class BeamsPrepareContextStrategy(PrepareContextBaseStrategy):
         Stringifys them and appends to context to be forwarded to template
         """
         for beam in BeamView.objects.all():
-            points = _stringify_points_for_template(VectorView.objects.filter(beam=beam.pk))
+            points = self._stringify_points_for_template(VectorView.objects.filter(beam=beam.pk))
             self.context.value[beam.memory_id] = points
         return self.context
 
