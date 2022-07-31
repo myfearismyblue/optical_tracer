@@ -7,7 +7,8 @@
 </head>
 <body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
-<svg width="{{canvas_width}}" height="{{canvas_height}}">
+
+<svg width="{{canvas_context.canvas_width}}" height="{{canvas_context.canvas_height}}">
     <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7"
         refX="9" refY="3.5" orient="auto">
@@ -29,15 +30,15 @@
         ]]></style>
     </defs>
 
-    {% for line, points in lines_points.items %}
+    {% for line, points in boundaries_context.items %}
         <polyline points="{{points}}" stroke="royalblue" fill="deepskyblue" />
     {% endfor %}
 
-    {% for axis, points in axis_points.items %}
+    {% for axis, points in axis_context.items %}
         <polyline points="{{points}}" stroke="black" fill="none" marker-end="url(#arrowhead)" />
     {% endfor %}
 
-    {% for beam, points in beams_points.items %}
+    {% for beam, points in beams_context.items %}
         <polyline class="beam" points="{{points}}"  fill="none" stroke-width="3" />
     {% endfor %}
 

@@ -321,7 +321,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         layers = self._fetch_optical_components_layers()
         for layer in layers:
             layer_view = self._append_layer_to_db(layer)
-            points = self._calculate_layer_points(layer)
+            points: List[Tuple[int, int]] = self._calculate_layer_points(layer)
             for p in points:
                 self._graph_objects[id(layer)] = points
                 # self._append_point_to_db(p, layer_view)
