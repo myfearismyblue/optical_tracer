@@ -77,7 +77,7 @@ class PrepareContextBaseStrategy(ABC):
     """Base class for different strategies preparing various objects' context for template """
 
     @abstractmethod
-    def prepare(self, context_request: ContextRequest) -> Context:
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         ...
 
 
@@ -109,8 +109,12 @@ class BoundariesPrepareContextStrategy(PrepareContextBaseStrategy):
         """
 
         for boundary in BoundaryView.objects.all():
-            points = _stringify_points_for_template(self._graph_objects[boundary.memory_id])
-            raise NotImplementedError(f'Points hat to be fetched somehow')
+            # here layer_points is the dict which is give in kwargs directly from the GraphService
+            # TODO here is to consider behaviour of GraphService in cases where data is fetching from db or getting directly
+            # from domain model. I suppose sometimes it is needed to retrieve data like layers, axis etc from db,
+            # but sometimes is should be calculated in a runtime. Bad idea to hardcode 'layer_points' literal directly
+            layer_points = kwargs['layer_points']
+            points = _stringify_points_for_template(layer_points[boundary.memory_id])
             self.context.value[boundary.memory_id] = points
         return self.context
 
@@ -226,7 +230,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         contexts = []
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
-            cont = itemPrepareStrategy().prepare(contexts_request)
+            cont = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
             contexts.append(cont)
         return contexts
 
