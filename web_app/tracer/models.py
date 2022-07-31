@@ -30,7 +30,7 @@ class ContextRequest:
 
 @dataclass
 class Context:
-    context_name: str
+    name: str
     value: Dict
 
 
