@@ -1,3 +1,4 @@
+import dill
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import sqrt, atan, pi
@@ -39,6 +40,7 @@ class BoundaryView(models.Model):
     name = models.CharField(max_length=50, verbose_name='Имя')
     side = models.CharField(max_length=10, verbose_name='Сторона')
     memory_id = models.BigIntegerField()
+    boundary_serial = models.BinaryField(null=True)
 
     def __str__(self):
         return f'Граница: {self.name}, сторона: {self.side}'
@@ -353,8 +355,10 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
             [res.append(l) for l in component._layers]
         return res
 
-    def _append_layer_to_db(self, layer):
-        layer_view = BoundaryView(name=layer.name, side=layer.side, memory_id=id(layer))
+    @staticmethod
+    def _append_layer_to_db(layer):
+        boundary_serial = dill.dumps(layer)
+        layer_view = BoundaryView(name=layer.name, side=layer.side, memory_id=id(layer),boundary_serial=boundary_serial)
         layer_view.save()
         return layer_view
 
