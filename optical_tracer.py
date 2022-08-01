@@ -447,7 +447,6 @@ class Vector(ICheckable):
         return f'{self.__class__.__name__}: ({self.initial_point}), {self.lum}, {self.w_length}, {self.theta}, {self.psi}'
 
 
-@kwargs_only
 @dataclass
 class Material:
     """
