@@ -7,9 +7,6 @@ from .models import BoundaryView, GraphService, AxisView, BeamView, VectorView, 
 
 def index(request):
 
-
-
-
     graph_info = {'canvas_width': 1600,
                   'canvas_height': 1200,
                   'scale': 1,

@@ -25,14 +25,15 @@ class UnregistredContextException(UserInfrastructuralBaseException):
 
 @dataclass
 class ContextRequest:
-    """Interface for requesting different contexts for a view from GraphService"""
+    """DTO for requesting different contexts for a view from GraphService"""
     contexts_list: List[str]  # list of certain contexts which are supposed to be drawn with GraphService
     graph_info: Dict  # common info for GraphService like dimensions of canvas etc. To be specified
 
 
 @dataclass
 class Context:
-    name: str
+    """DTO as a response to be forwarded to view.py"""
+    name: str   # context name. Specified in ContextRegistry
     value: Dict
 
 
@@ -222,7 +223,11 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         self._width_draw_ranges = -self._offset[0], self._canvas_dimensions[0] - self._offset[0]
 
     def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:
+        """
+        Reshapes context format from List[Context] to {Context1.name: Context1.value, Context2.name: Context2.value...}
+        """
         def _check_context_registered(contexts_request: ContextRequest):
+            """Make sure all contexts are valid and regisetred in ContextRegistry cls"""
             registered_contexts = ContextRegistry().get_registered_contexts()
             if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
                 unknown_context = list(set(contexts_request.contexts_list).difference(registered_contexts))
@@ -230,13 +235,10 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                                                   f'Registered contexts: {registered_contexts}')
 
         def _convert_context_format(context_list: List[Context]) -> Dict[str, Dict]:
-            """
-            Reshapes context format from List[Context] to {Context1.name: Context1.value, Context2.name: Context2.value...}
-            """
+            """Final preparation from list of contexts to kwarg dict, which is to be given to django render func"""
             converted_context = {}
             for current_context in context_list:
                 converted_context[current_context.name] = current_context.value
-
             return converted_context
 
         _check_context_registered(contexts_request)
