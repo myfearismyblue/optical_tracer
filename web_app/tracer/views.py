@@ -1,8 +1,8 @@
-from typing import Dict,  List
+from typing import Dict
 
 from django.shortcuts import render
 
-from .models import BoundaryView, GraphService, AxisView, BeamView, VectorView, ContextRequest, Context
+from .services import ContextRequest, GraphService
 
 
 def index(request):
