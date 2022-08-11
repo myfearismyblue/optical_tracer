@@ -2,6 +2,7 @@ from typing import Dict
 
 from django.shortcuts import render
 
+from .forms import AddLayer
 from .services import ContextRequest, GraphService
 
 
@@ -18,5 +19,7 @@ def index(request):
     gr_service.make_initials()
 
     context: Dict = gr_service.prepare_contexts(contexts_request)
+
+    form = AddLayer
 
     return render(request, 'tracer/tracer.html', context)

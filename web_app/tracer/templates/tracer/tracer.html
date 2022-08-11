@@ -1,3 +1,6 @@
+{% extends 'tracer/base.html' %}
+
+{% block content%}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +10,30 @@
 </head>
 <body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
+
+<div class="container" style="margin-top: 100px;">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">Toggle right offcanvas</button>
+
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasRightLabel">Optical system input</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+          <form method="post">
+              {% csrf_token %}
+              <input type="text" placeholder="Имя границы" class="form-control"> <br>
+              <select class="form-control" required="required">
+                  <option value="">Выберите сторону</option>
+                  <option value="left">Слева</option>
+                  <option value="right">Справа</option>
+              </select> <br>
+              <input type="text" placeholder="Уравнение" class="form-control"> <br>
+              <button class="btn btn-success" type="submit">Добавить</button>
+          </form>
+      </div>
+    </div>
+</div>
 
 <svg width="{{canvas_context.canvas_width}}" height="{{canvas_context.canvas_height}}">
     <defs>
@@ -45,3 +72,5 @@
 </svg>
 </body>
 </html>
+
+{% endblock %}
