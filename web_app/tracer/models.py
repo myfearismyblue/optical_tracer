@@ -5,9 +5,14 @@ sys.path.append(os.path.abspath('..'))  # magic to make optical_tracer to be fou
 
 from django.db import models
 
+
+class SideView(models.Model):
+    side = models.CharField(max_length=10)
+
+
 class BoundaryView(models.Model):
     name = models.CharField(max_length=50, verbose_name='Имя')
-    side = models.CharField(max_length=10, verbose_name='Сторона')
+    side = models.ForeignKey(SideView, on_delete=models.CASCADE)
     memory_id = models.BigIntegerField()
     boundary_serial = models.BinaryField(null=True)
 
@@ -43,5 +48,9 @@ class VectorView(models.Model):
     x0 = models.IntegerField(default=None)
     y0 = models.IntegerField(default=None)
     beam = models.ForeignKey(BeamView, on_delete=models.CASCADE)
+
+
+
+
 
 

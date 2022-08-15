@@ -6,7 +6,7 @@ from typing import Tuple, Callable, List, Dict, Iterable
 import dill
 
 from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, OpticalSystemBuilder
-from .models import AxisView, BoundaryView, BeamView, VectorView
+from .models import AxisView, BoundaryView, BeamView, VectorView, SideView
 
 
 class UserInfrastructuralBaseException(Exception):
@@ -211,6 +211,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         """Forwarding all objects to Django """
         self._clear_db()
         self._optical_system = self.build_optical_system()
+        self._push_sides_to_db()
         self._push_layers_to_db()
         self._push_axes_to_db()
         self._push_beams_to_db()
@@ -285,6 +286,11 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
         return builder.optical_system
 
+    def _push_sides_to_db(self):
+        """Sets boundary sides - left and right - to db"""
+        SideView.objects.create(side='Left')
+        SideView.objects.create(side='Right')
+
     def _push_layers_to_db(self):
         """
         Fetches layers from optical system and pushes them to db.
@@ -316,7 +322,8 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     @staticmethod
     def _append_layer_to_db(layer):
         boundary_serial = dill.dumps(layer)
-        layer_view = BoundaryView(name=layer.name, side=layer.side, memory_id=id(layer),boundary_serial=boundary_serial)
+        current_side = SideView.objects.filter(side='Left')[0] if layer.side==Side.LEFT else SideView.objects.filter(side='Right')[0]
+        layer_view = BoundaryView(name=layer.name, side=current_side, memory_id=id(layer),boundary_serial=boundary_serial)
         layer_view.save()
         return layer_view
 
