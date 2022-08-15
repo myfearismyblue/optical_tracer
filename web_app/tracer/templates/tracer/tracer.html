@@ -22,14 +22,8 @@
       <div class="offcanvas-body">
           <form method="post">
               {% csrf_token %}
-              <input type="text" placeholder="Имя границы" class="form-control"> <br>
-              <select class="form-control" required="required">
-                  <option value="">Выберите сторону</option>
-                  <option value="left">Слева</option>
-                  <option value="right">Справа</option>
-              </select> <br>
-              <input type="text" placeholder="Уравнение" class="form-control"> <br>
-              <button class="btn btn-success" type="submit">Добавить</button>
+              {{ form }}    
+              <button class="btn btn-outline-success" type="submit">Добавить</button>
           </form>
       </div>
     </div>

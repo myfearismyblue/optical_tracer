@@ -20,6 +20,14 @@ def index(request):
 
     context: Dict = gr_service.prepare_contexts(contexts_request)
 
-    form = AddLayer
 
-    return render(request, 'tracer/tracer.html', context)
+    if request.method == 'POST':
+        form = AddLayer(request.POST)
+        if form.is_valid():
+            print(form.cleaned_data)
+    else:
+        form = AddLayer()
+
+        context = {**context, 'form': form.as_p}
+
+    return render(request, 'tracer/tracer.html',context)
