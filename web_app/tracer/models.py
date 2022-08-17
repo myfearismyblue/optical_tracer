@@ -50,6 +50,11 @@ class VectorView(models.Model):
     beam = models.ForeignKey(BeamView, on_delete=models.CASCADE)
 
 
+class OpticalSystemView(models.Model):
+    name = models.CharField(max_length=50, default=None)
+    opt_sys_serial = models.BinaryField(null=True)
+
+
 
 
 
