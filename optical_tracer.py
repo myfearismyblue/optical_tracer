@@ -500,6 +500,19 @@ class Side(Enum):
         """Returns only the last word: LEFT or RIGHT"""
         return super().__str__().split('.')[-1]
 
+    @staticmethod
+    def from_str(side: str):
+        """Returns self depending of given string"""
+        if not isinstance(side, str):
+            raise TypeError(f'Input argument supposed to be a string, but was given {type(side)}')
+        tmp = side.lower()
+        if tmp == 'right':
+            return Side.RIGHT
+        elif tmp == 'left':
+            return Side.LEFT
+        else:
+            raise ValueError(f'Was given wrong argument f{side}, supposed to be Left or Right')
+
 
 def reversed_side(side: Side) -> Side:
     assert isinstance(side, Side)
@@ -942,6 +955,12 @@ class IOpticalSystem(ABC):
 
     @property
     @abstractmethod
+    def name(self) -> str:
+        ...
+
+
+    @property
+    @abstractmethod
     def vectors(self) -> Dict[int, List[Vector]]:
         """
         Traced through optical system beams.
@@ -981,6 +1000,10 @@ class OpticalSystem(IOpticalSystem):
     DEFAULT_CLS_MEDIUM: Material = Material(name="Air", transmittance=0, refractive_index=1)
 
     @property
+    def name(self) -> str:
+        return self._name
+
+    @property
     def vectors(self):
         return self._vectors
 
@@ -997,7 +1020,8 @@ class OpticalSystem(IOpticalSystem):
         # TODO: make actual data check here
         self._components = val
 
-    def __init__(self, *, default_medium: Material = DEFAULT_CLS_MEDIUM):
+    def __init__(self, *, name, default_medium: Material = DEFAULT_CLS_MEDIUM):
+        self._name = name
         self._components: List[OpticalComponent] = []
         self._vectors: Dict[int, List[Vector]] = {}
         self.default_background_component: DefaultOpticalComponent = \

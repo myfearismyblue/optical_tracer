@@ -62,6 +62,16 @@ class IOpticalSystemBuilder(ABC):
     def create_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
         ...
 
+    @staticmethod
+    @abstractmethod
+    def create_side(*, side: str) -> Side:
+        ...
+
+    @staticmethod
+    @abstractmethod
+    def create_boundary_callable(*, equation: str) -> Callable:
+        ...
+
     @abstractmethod
     def create_vector(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float) -> Vector:
         ...
@@ -158,6 +168,21 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
     def create_material(self, *, name: str, transmittance: float, refractive_index: float) -> Material:
         new_material = Material(name=name, transmittance=transmittance, refractive_index=refractive_index)
         return new_material
+
+    @staticmethod
+    def create_side(*, side: str) -> Side:
+        """Returns Side object depending on the give string Left or Right"""
+        return Side.from_str(side)
+
+    @staticmethod
+    def create_boundary_callable(*, equation: str) -> Callable:
+        """Gets input as string, validates it and returns callable object"""
+        def _validate(equation):
+            # FIXME: !!!!
+            return True
+
+        if _validate(equation):
+            return lambda y: eval(equation)
 
     def create_vector(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float) -> Vector:
         new_vector = Vector(initial_point=initial_point, lum=lum, w_length=w_length, theta=theta, psi=psi)
@@ -289,6 +314,11 @@ class CanvasPrepareContextStrategy(PrepareContextBaseStrategy):
         return self.context
 
 
+class FormsPrepareContextStrategy(PrepareContextBaseStrategy):
+    """Make preparations of forms' content after submition"""
+    pass
+
+
 @dataclass
 class ContextRegistry:
     # FIXME: link this with ContextRequest
@@ -309,7 +339,7 @@ class ContextRegistry:
 
 class IGraphService(ABC):
     @abstractmethod
-    def build_optical_system(self):  # TODO: add contract here
+    def fetch_optical_system(self):  # TODO: add contract here
         """Initing concrete optical system"""
         ...
 
@@ -344,7 +374,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def optical_system(self):
         if not isinstance(self._optical_system, OpticalSystem):
             raise UnspecifiedFieldException(f'Service hasn''t instanced any optical system yet. '
-                                            'Use build_optical_system')
+                                            'Use fetch_optical_system')
         return self._optical_system
 
     def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:
@@ -379,7 +409,9 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def make_initials(self):
         """Forwarding all objects to Django """
         self._clear_db()
-        self._optical_system = self.build_optical_system()
+        self._optical_system = self.fetch_optical_system(name='Hardcoded OptSys')
+        # temporary dont do this because this responsibility
+        # i'm going to replace to controller may be
         self._push_sides_to_db()
         self._push_layers_to_db()
         self._push_axes_to_db()
@@ -392,7 +424,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         BeamView.objects.all().delete()
 
     @staticmethod
-    def build_optical_system():
+    def fetch_optical_system(name):
         """Uses builder to creates an Optical System"""
         builder = OpticalSystemBuilder()
 
@@ -437,7 +469,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                                                 layers=[fourth_comp_left_boundary, ],
                                                 material=fourth_comp_mat)
 
-        builder.reset()
+        builder.reset(name=name)
 
         builder.add_components(components=(first_lense, second_lense, third_lense, fourth_lense, fifth_lense))
 
@@ -454,6 +486,11 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         builder.trace_all()
 
         return builder.optical_system
+
+    def _push_optical_system_to_db(self):
+        opt_sys_serial = dill.dumps(self.optical_system)
+        OpticalSystemView.objects.create()
+
 
     def _push_sides_to_db(self):
         """Sets boundary sides - left and right - to db"""

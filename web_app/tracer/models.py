@@ -7,7 +7,15 @@ from django.db import models
 
 
 class SideView(models.Model):
-    side = models.CharField(max_length=10)
+    side = models.CharField(max_length=10, verbose_name='Сторона')
+
+    def __str__(self):
+        return f'{self.side}'
+
+    class Meta:
+        verbose_name = 'Сторона'
+        verbose_name_plural = 'Стороны'
+        ordering = ['pk']
 
 
 class BoundaryView(models.Model):
