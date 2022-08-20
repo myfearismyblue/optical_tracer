@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from math import sqrt, atan, pi
-from typing import Tuple, Callable, List, Dict, Iterable, Union
+from typing import Tuple, Callable, List, Dict, Iterable, Union, Optional
+from warnings import warn
 
 import dill
 
@@ -84,9 +85,14 @@ class IOpticalSystemBuilder(ABC):
 class OpticalSystemBuilder(IOpticalSystemBuilder):
     """The concrete builder of optical systems"""
 
-    def __init__(self):
-        self._optical_system = None
+    def __init__(self, *, optical_system: Optional[IOpticalSystem] = None):
         self._vectors = []
+        if optical_system is None:
+            self.reset()
+            warn(f'{self.__class__}: while initing builder OpticalSystem hadn''t been provided. '
+                 'Empty optical system has been created.')
+        else:
+            self._optical_system = optical_system
 
     @property
     def optical_system(self):
@@ -696,3 +702,51 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
             angle = pi / 2 if y1 > y0 else -pi / 2
 
         return transition_absciss, transition_ordinate, angle, length
+
+
+class FormHandleService:
+    """Responsible for handling django form data and forwarding it to domain model"""
+
+    def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
+        self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
+
+    @property
+    def builder(self) -> IOpticalSystemBuilder:
+        """Cls uses OpticalSystemBuilder to handle with domain model"""
+        if not isinstance(self._builder, IOpticalSystemBuilder):
+            raise UnspecifiedFieldException(f'Optical system builder hasn''t been initialised properly. ')
+        return self._builder
+
+    def pull_new_component(self, cleaned_data: Dict):
+        """
+        Creates new optical component via cleaned data from form.
+        After creating pulls the component to builder.optical_system and traces vectors
+        """
+        new_component = self._compose_new_component(cleaned_data)
+        self.builder.add_components(components=new_component)
+        self.builder.trace_all()
+
+    def _compose_new_component(self, cleaned_data: Dict) -> OpticalComponent:
+        """Gets data from form.cleaned_data and uses OpticalSystemBuilder to compose a new OpticalComponent object."""
+        first_layer_side = self.builder.create_side(side=str(cleaned_data['first_layer_side']))
+        first_layer_boundary: Callable = self.builder.create_boundary_callable(
+            equation=cleaned_data['first_layer_equation'])  # FIXME: Make alot validations here
+        first_new_layer = self.builder.create_layer(name=cleaned_data['first_layer_name'],
+                                                    side=first_layer_side,
+                                                    boundary=first_layer_boundary)
+
+        second_layer_side = self.builder.create_side(side=str(cleaned_data['second_layer_side']))
+        second_layer_boundary: Callable = self.builder.create_boundary_callable(
+            equation=cleaned_data['second_layer_equation'])  # FIXME: Make alot validations here
+        second_new_layer = self.builder.create_layer(name=cleaned_data['second_layer_name'],
+                                                     side=second_layer_side,
+                                                     boundary=second_layer_boundary)
+
+        current_material = self.builder.create_material(name=cleaned_data['material_name'],
+                                                        transmittance=cleaned_data['transmittance'],
+                                                        refractive_index=cleaned_data['index'])
+        new_component = self.builder.create_component(name=cleaned_data['component_name'],
+                                                      layers=(first_new_layer, second_new_layer),
+                                                      material=current_material)
+        return new_component
+
