@@ -2,8 +2,8 @@ from typing import Dict, Callable
 
 from django.shortcuts import render
 
-from .forms import AddLayer
-from .services import ContextRequest, GraphService, OpticalSystemBuilder
+from .forms import AddComponent
+from .services import ContextRequest, GraphService, OpticalSystemBuilder, FormHandleService
 
 
 def index(request):
@@ -27,7 +27,7 @@ def index(request):
             # append new layer to the optical system
             # do context prepare
     else:
-        formAddLayer = AddLayer()
+        formAddComponent = AddComponent()
 
     graph_info = {'canvas_width': 1600,
                   'canvas_height': 1200,
@@ -41,6 +41,6 @@ def index(request):
 
     context: Dict = gr_service.prepare_contexts(contexts_request)
 
-    context = {**context, 'form': formAddLayer.as_p}
+    context = {**context, 'form': formAddComponent.as_p}
 
     return render(request, 'tracer/tracer.html', context)
