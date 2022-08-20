@@ -226,7 +226,7 @@ class Grapher:
 
     def _draw_beams(self):
         """Draws beam lines on a canvas"""
-        for b in self._optical_system._vectors.values():
+        for b in self._optical_system._rays.values():
             assert isinstance(b, list)
             self._draw_beam(b)
 

@@ -950,7 +950,7 @@ class IOpticalSystem(ABC):
     Interface which any OpticalSystem has to have in order to:
     1. add optical component to itself
     2. trace the given vector through itself
-    3. store traced vector as a beam in self.vectors
+    3. store traced vector as a beam in self.rays
     """
 
     @property
@@ -961,7 +961,7 @@ class IOpticalSystem(ABC):
 
     @property
     @abstractmethod
-    def vectors(self) -> Dict[int, List[Vector]]:
+    def rays(self) -> Dict[int, List[Vector]]:
         """
         Traced through optical system beams.
          :return Dict[beam_id: List[node_vector0, node_vector1...]]"""
@@ -1004,12 +1004,13 @@ class OpticalSystem(IOpticalSystem):
         return self._name
 
     @property
-    def vectors(self):
-        return self._vectors
+    def rays(self):
+        """"""
+        return self._rays
 
-    @vectors.setter
-    def vectors(self, value: Dict[int, List[Vector]]):
-        self._vectors = value  # TODO: make conscious data checking here
+    @rays.setter
+    def rays(self, value: Dict[int, List[Vector]]):
+        self._rays = value  # TODO: make conscious data checking here
 
     @property
     def components(self) -> List[OpticalComponent]:
@@ -1023,7 +1024,7 @@ class OpticalSystem(IOpticalSystem):
     def __init__(self, *, name, default_medium: Material = DEFAULT_CLS_MEDIUM):
         self._name = name
         self._components: List[OpticalComponent] = []
-        self._vectors: Dict[int, List[Vector]] = {}
+        self._rays: Dict[int, List[Vector]] = {}
         self.default_background_component: DefaultOpticalComponent = \
             self._init_default_background_component(default_medium=default_medium)
 
@@ -1064,11 +1065,11 @@ class OpticalSystem(IOpticalSystem):
 
     def _add_initial_vector(self, *, initial_vector: Vector) -> None:
         """Adds only initial vector of a beam which is to trace."""
-        self.vectors[id(initial_vector)] = [initial_vector]
+        self.rays[id(initial_vector)] = [initial_vector]
 
     def _append_to_beam(self, *, initial_vector: Vector, node_vector: Vector) -> None:
         """Adds node-vector to a beam, initiated by initial vector"""
-        self.vectors[id(initial_vector)].append(node_vector)
+        self.rays[id(initial_vector)].append(node_vector)
 
     def _get_containing_component(self, *, vector: Vector) -> OpticalComponent:
         """Return the component of system which contains given vector or raises VectorOutOfComponentException"""
@@ -1173,9 +1174,9 @@ class OpticalSystem(IOpticalSystem):
                                                                                         components=self.components)
             except NoIntersectionWarning:
                 if DEBUG:
-                    print(f'Tracing is finished for vector: {self.vectors[id(initial_vector)][0]}. '
-                          f'Last point is {self.vectors[id(initial_vector)][-1].initial_point}')
-                return list(self.vectors.values())[0]
+                    print(f'Tracing is finished for vector: {self.rays[id(initial_vector)][0]}. '
+                          f'Last point is {self.rays[id(initial_vector)][-1].initial_point}')
+                return list(self.rays.values())[0]
             prev_index = current_component.material.refractive_index
             current_component = self._get_containing_component_or_default(vector=current_vector)
             next_index = current_component.material.refractive_index
@@ -1186,7 +1187,7 @@ class OpticalSystem(IOpticalSystem):
             except TotalInnerReflectionException as e:
                 if DEBUG:
                     warn(f'\nTotal internal reflection is occurred for '
-                         f'{self.vectors[id(initial_vector)][0]}.')
+                         f'{self.rays[id(initial_vector)][0]}.')
                 current_vector = self._reflect(vector=current_vector, layer=intersection_layer)
 
             self._append_to_beam(initial_vector=initial_vector, node_vector=current_vector)
@@ -1240,13 +1241,13 @@ def main():
                                                                 )
     [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
     in_point = Point(x=0, y=50, z=250)
-    resolution = 10  # vectors per circle
+    resolution = 10  # rays per circle
     for theta in range(
             int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
         if 52 <= theta < 53 and True:  #
             v = Vector(initial_point=in_point, lum=1, w_length=555, theta=theta / resolution, psi=0)
             opt_sys.trace(vector=v)
-    print(opt_sys.vectors)
+    print(opt_sys.rays)
     return opt_sys
 
 

@@ -460,9 +460,9 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                                                material=thrd_comp_mat)
 
         fifth_comp_left_boundary = builder.create_layer(boundary=lambda y: 300 + y ** 2 / 400, side=Side.RIGHT,
-                                                       name='Third-left bound')
+                                                        name='Third-left bound')
         fifth_comp_right_boundary = builder.create_layer(boundary=lambda y: 400 + y ** 2 / 400, side=Side.LEFT,
-                                                        name='Third-right bound')
+                                                         name='Third-right bound')
         fifth_comp_mat = builder.create_material(name='Glass', transmittance=0.9, refractive_index=1.4)
         fifth_lense = builder.create_component(name='Third lense',
                                                layers=[fifth_comp_left_boundary, fifth_comp_right_boundary],
@@ -481,7 +481,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
         initial_point = builder.create_point(x=0, y=50, z=0)
 
-        resolution = 10  # vectors per circle
+        resolution = 10  # rays per circle
         for theta in range(
                 int(2 * pi * resolution + 2 * pi * 1 / resolution)):  # 2 * pi * 1/resolution addition to make compleete circle
             if True:  # 52 <= theta < 53 and
@@ -496,7 +496,6 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def _push_optical_system_to_db(self):
         opt_sys_serial = dill.dumps(self.optical_system)
         OpticalSystemView.objects.create()
-
 
     def _push_sides_to_db(self):
         """Sets boundary sides - left and right - to db"""
@@ -534,8 +533,10 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     @staticmethod
     def _append_layer_to_db(layer):
         boundary_serial = dill.dumps(layer)
-        current_side = SideView.objects.filter(side='Left')[0] if layer.side==Side.LEFT else SideView.objects.filter(side='Right')[0]
-        layer_view = BoundaryView(name=layer.name, side=current_side, memory_id=id(layer),boundary_serial=boundary_serial)
+        current_side = SideView.objects.filter(side='Left')[0] if layer.side == Side.LEFT else \
+            SideView.objects.filter(side='Right')[0]
+        layer_view = BoundaryView(name=layer.name, side=current_side, memory_id=id(layer),
+                                  boundary_serial=boundary_serial)
         layer_view.save()
         return layer_view
 
@@ -625,7 +626,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
             canvas_z, canvas_y = self._convert_opticalcoords_to_canvascoords(opt_z, opt_y)
             return canvas_z, canvas_y
 
-        tmp_beams = self._optical_system.vectors  # {beam_id: [Vectors]}
+        tmp_beams = self._optical_system.rays  # {beam_id: [Vectors]}
         beams = dict()
         for id, vector_list in tmp_beams.items():
             beams[id] = []
