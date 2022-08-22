@@ -5,9 +5,11 @@ from typing import Tuple, Callable, List, Dict, Iterable, Union, Optional
 from warnings import warn
 
 import dill
+from django.forms import forms
 
 from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, \
-    UnspecifiedFieldException, OPT_SYS_DIMENSIONS
+    UnspecifiedFieldException, OPT_SYS_DIMENSIONS, IOpticalSystem
+from .forms import AddComponent
 from .models import AxisView, BoundaryView, BeamView, VectorView, SideView, OpticalSystemView
 
 
@@ -37,12 +39,17 @@ class IOpticalSystemBuilder(ABC):
 
     @abstractmethod
     def reset(self):
-        """Clear all components from optical system"""
+        """Set a new optical system"""
         ...
 
     @abstractmethod
     def trace(self, *, vector: Vector):
         """Wrapping around optical_system.trace()"""
+        ...
+
+    @abstractmethod
+    def trace_all(self):
+        """Uses vectors in self.vectors and traces them"""
         ...
 
     @abstractmethod
@@ -102,7 +109,7 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
         return self._optical_system
 
     @optical_system.setter
-    def optical_system(self, obj: OpticalSystem):
+    def optical_system(self, obj: IOpticalSystem):
         if not isinstance(obj, OpticalSystem):
             raise UnspecifiedFieldException(f'Wrong argument type. '
                                             f'Supposed to be OpticalSystem, but was given: {type(obj)}')
@@ -142,7 +149,6 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
                                             f'Supposed to be Vector or iterable of Vectors, but was given: {type(vectors)}')
 
     def trace_all(self):
-        opt_sys = self.optical_system
         self.trace(vectors=self.vectors)
 
     def add_components(self, components: Union[OpticalComponent, Iterable[OpticalComponent]]):
@@ -320,9 +326,11 @@ class CanvasPrepareContextStrategy(PrepareContextBaseStrategy):
         return self.context
 
 
-class FormsPrepareContextStrategy(PrepareContextBaseStrategy):
-    """Make preparations of forms' content after submition"""
-    pass
+class OpticalSystemPrepareContextStrategy(PrepareContextBaseStrategy):
+    """""" # FIXME: make some docstring after certain implementation will be clear
+
+    def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
+        raise NotImplementedError
 
 
 @dataclass
@@ -331,16 +339,24 @@ class ContextRegistry:
     __registered_contexts = {'canvas_context': CanvasPrepareContextStrategy,
                              'boundaries_context': BoundariesPrepareContextStrategy,
                              'axis_context': AxisPrepareContextStrategy,
-                             'beams_context': BeamsPrepareContextStrategy}
+                             'beams_context': BeamsPrepareContextStrategy,
+                             'opt_sys_context:': OpticalSystemPrepareContextStrategy}
 
     def get_prepare_strategy(self, context_name: str) -> PrepareContextBaseStrategy:
-        if context_name not in self.__registered_contexts:
+        if str(context_name) not in self.__registered_contexts:
             raise UnregisteredContextException(f'Requested context is unknown: {context_name}. '
-                                              f'Registered contexts: {self.__registered_contexts}')
+                                               f'Registered contexts: {self.__registered_contexts}')
         return self.__registered_contexts[context_name]
 
     def get_registered_contexts(self):
         return tuple(self.__registered_contexts.keys())
+
+    def get_context_name(self, context_name: str):
+        """Returns a name of context if context is registered"""
+        if str(context_name) not in self.__registered_contexts:
+            raise UnregisteredContextException(f'Requested context is unknown: {context_name}. '
+                                               f'Registered contexts: {self.__registered_contexts}')
+        return str(context_name)
 
 
 class IGraphService(ABC):
@@ -362,8 +378,8 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __init__(self, contexts_request: ContextRequest):
-        self._canvas_dimensions = contexts_request.graph_info['canvas_width'], contexts_request.graph_info[
-            'canvas_height']
+        self._canvas_dimensions = contexts_request.graph_info['canvas_width'], \
+                                  contexts_request.graph_info['canvas_height']
 
         # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
         self._offset = self._canvas_dimensions[0] // 3, self._canvas_dimensions[1] // 3
@@ -705,11 +721,32 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         return transition_absciss, transition_ordinate, angle, length
 
 
-class FormHandleService:
-    """Responsible for handling django form data and forwarding it to domain model"""
+class FormHandleBaseStrategy(ABC):
+    """
+    Abstract cls to perform different handle strategies. Each strategy gets certain form,
+    performs handling of certain data type and returns name of a context in ContextRequest which is to be given to graph
+    service in order to prepare this context"""
+
+    @abstractmethod
+    def handle(self, form_instance: forms.Form) -> ContextRequest:
+        ...
+
+
+class AddComponentFormHandleService(FormHandleBaseStrategy):
+    """Responsible for handling django form AddComponent and forwarding it to domain model.
+    An optical system should be give while instance the cls, in which component is going to be added.
+    If opt sys is not given, the new one will be created"""
 
     def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
+
+    def handle(self, form_instance: AddComponent):
+        if not isinstance(form_instance, AddComponent):
+            raise TypeError(f'Wrong type of argument for this type of handler.'
+                            f'Should be AddComponent form, but was given {type(AddComponent)}')
+        if form_instance.is_valid():
+            self.pull_new_component(form_instance.cleaned_data)
+        return ContextRegistry.get_context_name('opt_sys_context')
 
     @property
     def builder(self) -> IOpticalSystemBuilder:
@@ -750,4 +787,16 @@ class FormHandleService:
                                                       layers=(first_new_layer, second_new_layer),
                                                       material=current_material)
         return new_component
+
+
+class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
+    """Responsible for ..."""
+
+    def handle(self, form_instance):
+        if form_instance.is_valid:
+            ...
+        return
+
+
+
 
