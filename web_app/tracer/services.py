@@ -31,6 +31,10 @@ class IOpticalSystemBuilder(ABC):
     def optical_system(self):
         ...
 
+    @abstractmethod
+    def set_optical_system_name(self, name: str):
+        """Sets the name of inited optical system"""
+
     @property
     @abstractmethod
     def vectors(self):
@@ -38,8 +42,8 @@ class IOpticalSystemBuilder(ABC):
         ...
 
     @abstractmethod
-    def reset(self):
-        """Set a new optical system"""
+    def reset(self, optical_system: Optional[OpticalSystem], vectors: List[Optional[Vector]]):
+        """Resets builder instance with the provided optical system and vectors list."""
         ...
 
     @abstractmethod
@@ -115,6 +119,9 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
                                             f'Supposed to be OpticalSystem, but was given: {type(obj)}')
         self._optical_system = obj
 
+    def set_optical_system_name(self, name: str):
+        self.optical_system.name = name
+
     @property
     def vectors(self):
         return self._vectors
@@ -129,13 +136,14 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
             raise UnspecifiedFieldException(f'Wrong argument type. '
                                             f'Supposed to be Vector or iterable of Vectors, but was given: {type(vectors)}')
 
-    def reset(self, *, name='Unnamed OptSys', default_medium: Material = OpticalSystem.DEFAULT_CLS_MEDIUM):
-        if not isinstance(default_medium, Material):
-            raise UnspecifiedFieldException(f'Wrong argument type. '
-                                            f'Supposed to be Material, but was given: {type(default_medium)}')
-        new_opt_sys = OpticalSystem(name=name, default_medium=default_medium)
-        self.optical_system = new_opt_sys
-        self.vectors = list()
+    def reset(self, *, optical_system: Optional[OpticalSystem] = OpticalSystem(),
+                       vectors: List[Optional[Vector]] = list()):
+        """
+        Resets builder instance with the provided optical system and vectors list.
+        If args are not given, sets optical system empty with default values, sets vectors as empty list
+        """
+        self.optical_system = optical_system
+        self.vectors = vectors
 
     def trace(self, *, vectors: Union[Vector, Iterable[Vector]]):
         opt_sys = self.optical_system
@@ -491,7 +499,8 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                                                 layers=[fourth_comp_left_boundary, ],
                                                 material=fourth_comp_mat)
 
-        builder.reset(name=name)
+        builder.reset()
+        builder.set_optical_system_name(name=name)
 
         builder.add_components(components=(first_lense, second_lense, third_lense, fourth_lense, fifth_lense))
 
