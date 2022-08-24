@@ -385,14 +385,14 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     SCALE = 1  # mm/px
     OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
-    def __init__(self, contexts_request: ContextRequest):
+    def __init__(self, contexts_request: ContextRequest, optical_system: OpticalSystem = None):
         self._canvas_dimensions = contexts_request.graph_info['canvas_width'], \
                                   contexts_request.graph_info['canvas_height']
 
         # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
         self._offset = self._canvas_dimensions[0] // 3, self._canvas_dimensions[1] // 3
         self._scale = contexts_request.graph_info['scale']
-        self._optical_system = None
+        self._optical_system = optical_system
         self._graph_objects = {}
 
         # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
@@ -436,12 +436,13 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         merged_context = _convert_context_format(contexts)
         return merged_context
 
-    def make_initials(self):
-        """Forwarding all objects to Django """
+    def make_initials(self, contexts_request: ContextRequest):
+        """Initials, which should be done depending on context requested"""
+
+        # FIXME: MAKE SOME STRATEGY DEPENDING ON CONTEXT
         self._clear_db()
-        self._optical_system = self.fetch_optical_system(name='Hardcoded OptSys')
-        # temporary dont do this because this responsibility
-        # i'm going to replace to controller may be
+        # self._optical_system = self.fetch_optical_system()
+        # self._push_optical_system_to_db()
         self._push_sides_to_db()
         self._push_layers_to_db()
         self._push_axes_to_db()
@@ -449,12 +450,15 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
     @staticmethod
     def _clear_db():
-        BoundaryView.objects.all().delete()  # on_delete=models.CASCADE for models.BoundaryPoint
-        AxisView.objects.all().delete()
-        BeamView.objects.all().delete()
+        django_models_to_clear = [BoundaryView, AxisView, BeamView, SideView]
+        [cls.objects.all().delete() for cls in django_models_to_clear]
+
+    def fetch_optical_system(self) -> OpticalSystem:
+        """Retrieve somehow an optical system"""
+        return self._create_hardcoded_optical_system()
 
     @staticmethod
-    def fetch_optical_system(name):
+    def _create_hardcoded_optical_system(name: str = 'Hardcoded OptSys') -> OpticalSystem:
         """Uses builder to creates an Optical System"""
         builder = OpticalSystemBuilder()
 
@@ -515,17 +519,31 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                 builder.vectors.append(v)
 
         builder.trace_all()
+        return builder.optical_system
 
+    @staticmethod
+    def _create_empty_optical_system(name: str = 'Empty Optical System') -> OpticalSystem:
+        builder = OpticalSystemBuilder()
+        builder.reset(name=name)
         return builder.optical_system
 
     def _push_optical_system_to_db(self):
-        opt_sys_serial = dill.dumps(self.optical_system)
-        OpticalSystemView.objects.create()
+        opt_sys = {'opt_sys_serial': dill.dumps(self.optical_system),
+                   'name': self.optical_system.name}
+        OpticalSystemView.objects.create(**opt_sys)
 
-    def _push_sides_to_db(self):
+    def _push_sides_to_db(self) -> None:
         """Sets boundary sides - left and right - to db"""
-        SideView.objects.create(side='Left')
-        SideView.objects.create(side='Right')
+
+        def _reset_sides():
+            SideView.objects.create(side='Left')
+            SideView.objects.create(side='Right')
+
+        query = SideView.objects.all()
+        stored_values = []
+        [stored_values.append(obj.side) for obj in query]
+        if len(query) != 2 or stored_values not in (['Left', 'Right'], ['Right', 'Left']):
+            _reset_sides()
 
     def _push_layers_to_db(self):
         """
