@@ -409,15 +409,17 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
     def prepare_contexts(self, contexts_request: ContextRequest) -> Dict[str, Dict]:
         """
-        Reshapes context format from List[Context] to {Context1.name: Context1.value, Context2.name: Context2.value...}
+        Gets contexts request, checks all contexts are valid, and using appropriate strategies prepares all contexts to
+        be given to controller
         """
+
         def _check_context_registered(contexts_request: ContextRequest):
             """Make sure all contexts are valid and regisetred in ContextRegistry cls"""
             registered_contexts = ContextRegistry().get_registered_contexts()
             if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
                 unknown_context = list(set(contexts_request.contexts_list).difference(registered_contexts))
                 raise UnregisteredContextException(f'Requested context is unknown: {unknown_context}. '
-                                                  f'Registered contexts: {registered_contexts}')
+                                                   f'Registered contexts: {registered_contexts}')
 
         def _convert_context_format(context_list: List[Context]) -> Dict[str, Dict]:
             """Final preparation from list of contexts to kwarg dict, which is to be given to django render func"""
@@ -430,10 +432,10 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         contexts = []
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
-            cont = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
-            contexts.append(cont)
+            prepared_context = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
+            contexts.append(prepared_context)
 
-        merged_context = _convert_context_format(contexts)
+        merged_context: Dict[str, Dict] = _convert_context_format(contexts)
         return merged_context
 
     def make_initials(self, contexts_request: ContextRequest):
