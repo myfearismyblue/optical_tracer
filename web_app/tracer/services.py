@@ -799,13 +799,23 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
 
 class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
-    """Responsible for ..."""
+    """Responsible for handling form of optical system choice"""
 
-    def handle(self, form_instance):
-        if form_instance.is_valid:
-            ...
-        return
+    def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
+        self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
+    @property
+    def builder(self) -> IOpticalSystemBuilder:
+        """Cls uses OpticalSystemBuilder to handle with domain model"""
+        if not isinstance(self._builder, IOpticalSystemBuilder):
+            raise UnspecifiedFieldException(f'Optical system builder hasn''t been initialised properly. ')
+        return self._builder
 
-
-
+    def handle(self, form_instance: ChooseOpticalSystem):
+        formChooseOpticalSystem = form_instance
+        if formChooseOpticalSystem.is_valid:
+            modelOpticalSystemView = formChooseOpticalSystem.cleaned_data['optical_system']
+            name = modelOpticalSystemView.name
+            optical_system = dill.loads(modelOpticalSystemView.opt_sys_serial)
+            self.builder.reset(optical_system=optical_system)
+            self.builder.set_optical_system_name(name=name)
