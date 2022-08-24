@@ -1003,6 +1003,12 @@ class OpticalSystem(IOpticalSystem):
     def name(self) -> str:
         return self._name
 
+    @name.setter
+    def name(self, val: str) -> None:
+        if not isinstance(val, str):
+            raise TypeError(f'Provided name couldnt be treated as a string: {type(val)}')
+        self._name = val
+
     @property
     def rays(self):
         """"""
@@ -1021,7 +1027,7 @@ class OpticalSystem(IOpticalSystem):
         # TODO: make actual data check here
         self._components = val
 
-    def __init__(self, *, name, default_medium: Material = DEFAULT_CLS_MEDIUM):
+    def __init__(self, *, name='Unnamed', default_medium: Material = DEFAULT_CLS_MEDIUM):
         self._name = name
         self._components: List[OpticalComponent] = []
         self._rays: Dict[int, List[Vector]] = {}

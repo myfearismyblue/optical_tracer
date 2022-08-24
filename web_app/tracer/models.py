@@ -62,6 +62,9 @@ class OpticalSystemView(models.Model):
     name = models.CharField(max_length=50, default=None)
     opt_sys_serial = models.BinaryField(null=True)
 
+    def __str__(self):
+        return self.name
+
 
 
 
