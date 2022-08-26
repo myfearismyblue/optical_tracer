@@ -29,19 +29,16 @@ def index(request):
         gr_service = GraphService(contexts_request=contexts_request,
                                   optical_system=form_handler.builder.optical_system)
 
-        gr_service._clear_db()      # FIXME: make strategy initials here
         gr_service._push_sides_to_db()
         gr_service._push_layers_to_db()
-        gr_service._push_axes_to_db()
         gr_service._push_beams_to_db()
 
 
     else:
         gr_service = GraphService(contexts_request=contexts_request)
 
-        gr_service._clear_db()      # FIXME: make strategy initials here
+              # FIXME: make strategy initials here
         gr_service._push_sides_to_db()
-        gr_service._push_axes_to_db()
 
     context: Dict = gr_service.prepare_contexts(contexts_request)
 

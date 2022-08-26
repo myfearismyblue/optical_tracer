@@ -9,7 +9,7 @@ from django.forms import forms
 
 from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, \
     UnspecifiedFieldException, OPT_SYS_DIMENSIONS, IOpticalSystem
-from .forms import AddComponent
+from .forms import AddComponent, ChooseOpticalSystem
 from .models import AxisView, BoundaryView, BeamView, VectorView, SideView, OpticalSystemView
 
 
@@ -240,6 +240,70 @@ class Context:
     value: Dict
 
 
+class InitGraphServiceBaseStrategy(ABC):
+    """The base class of initing graph service depending on different given contexts"""
+
+    def __init__(self, contexts_request: ContextRequest, graph_service):
+        self._contexts_request = contexts_request
+        self._graph_service = graph_service
+
+    @abstractmethod
+    def init_graph_service(self):
+        """ Do various stuff before preparing contexts"""
+        ...
+
+
+class CanvasInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+    """
+    Responsible for correct initing of graph service if 'canvas_context' is demanded.
+    Occasionally it should be done anyway if we want something to be drawn on a canvas
+    """
+
+    def init_graph_service(self):
+        contexts_request = self._contexts_request   # just make synonym
+        self._graph_service._graph_objects = {}
+        self._graph_service._canvas_dimensions = (contexts_request.graph_info['canvas_width'],
+                                                  contexts_request.graph_info['canvas_height'])
+
+        # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
+        self._graph_service._offset = self._graph_service._canvas_dimensions[0] // 3, \
+                                      self._graph_service._canvas_dimensions[1] // 3
+        self._graph_service._scale = contexts_request.graph_info['scale']
+
+        # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
+        # coordinates are upside-down because of reversion of vertical axis
+        self._graph_service._height_draw_ranges = self._graph_service._offset[1] - self._graph_service._canvas_dimensions[1], \
+                                            self._graph_service._offset[1]
+        self._graph_service._width_draw_ranges = -self._graph_service._offset[0], \
+                                           self._graph_service._canvas_dimensions[0] - self._graph_service._offset[0]
+
+
+class BoundariesInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+
+    def init_graph_service(self):
+        ...
+
+
+class AxisInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+    """Responsible for correct initing of graph service if axis should be drawn"""
+
+    def init_graph_service(self):
+        """Using inner properties of service calculates AxisView model and pushes them to db"""
+        self._graph_service.push_axes_to_db()
+
+
+class BeamsInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+
+    def init_graph_service(self):
+        pass
+
+
+class OpticalSystemInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+
+    def init_graph_service(self):
+        pass
+
+
 class PrepareContextBaseStrategy(ABC):
     """Base class for different strategies preparing various objects' context for template """
 
@@ -344,17 +408,28 @@ class OpticalSystemPrepareContextStrategy(PrepareContextBaseStrategy):
 @dataclass
 class ContextRegistry:
     # FIXME: link this with ContextRequest
-    __registered_contexts = {'canvas_context': CanvasPrepareContextStrategy,
-                             'boundaries_context': BoundariesPrepareContextStrategy,
-                             'axis_context': AxisPrepareContextStrategy,
-                             'beams_context': BeamsPrepareContextStrategy,
-                             'opt_sys_context:': OpticalSystemPrepareContextStrategy}
+    __registered_contexts = {'canvas_context': {'prepare_context': CanvasPrepareContextStrategy,
+                                                'init_graph_service': CanvasInitGraphServiceStrategy},
+                             'boundaries_context': {'prepare_context': BoundariesPrepareContextStrategy,
+                                                    'init_graph_service': BoundariesInitGraphServiceStrategy},
+                             'axis_context': {'prepare_context': AxisPrepareContextStrategy,
+                                              'init_graph_service': AxisInitGraphServiceStrategy},
+                             'beams_context': {'prepare_context': BeamsPrepareContextStrategy,
+                                               'init_graph_service': BeamsInitGraphServiceStrategy},
+                             'opt_sys_context': {'prepare_context': OpticalSystemPrepareContextStrategy,
+                                                 'init_graph_service': OpticalSystemInitGraphServiceStrategy},}
 
     def get_prepare_strategy(self, context_name: str) -> PrepareContextBaseStrategy:
         if str(context_name) not in self.__registered_contexts:
             raise UnregisteredContextException(f'Requested context is unknown: {context_name}. '
                                                f'Registered contexts: {self.__registered_contexts}')
-        return self.__registered_contexts[context_name]
+        return self.__registered_contexts[context_name]['prepare_context']
+
+    def get_init_strategy(self, context_name: str) -> InitGraphServiceBaseStrategy:
+        if str(context_name) not in self.__registered_contexts:
+            raise UnregisteredContextException(f'Requested context is unknown: {context_name}. '
+                                               f'Registered contexts: {self.__registered_contexts}')
+        return self.__registered_contexts[context_name]['init_graph_service']
 
     def get_registered_contexts(self):
         return tuple(self.__registered_contexts.keys())
@@ -386,19 +461,16 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __init__(self, contexts_request: ContextRequest, optical_system: OpticalSystem = None):
-        self._canvas_dimensions = contexts_request.graph_info['canvas_width'], \
-                                  contexts_request.graph_info['canvas_height']
 
-        # offset of entire optical system relatively to (0, 0) canvas point which is upper-left corner
-        self._offset = self._canvas_dimensions[0] // 3, self._canvas_dimensions[1] // 3
-        self._scale = contexts_request.graph_info['scale']
+        self._check_context_registered(contexts_request)
         self._optical_system = optical_system
-        self._graph_objects = {}
 
-        # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
-        # coordinates are upside-down because of reversion of vertical axis
-        self._height_draw_ranges = self._offset[1] - self._canvas_dimensions[1], self._offset[1]
-        self._width_draw_ranges = -self._offset[0], self._canvas_dimensions[0] - self._offset[0]
+        # apply various initing configurations depending on what should be drawn
+        self._clear_db()
+        for item in contexts_request.contexts_list:
+            itemInitGraphServiceStrategy: InitGraphServiceBaseStrategy = ContextRegistry().get_init_strategy(item)
+            itemInitGraphServiceStrategy(contexts_request, self).init_graph_service()
+
 
     @property
     def optical_system(self):
@@ -413,14 +485,6 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         be given to controller
         """
 
-        def _check_context_registered(contexts_request: ContextRequest):
-            """Make sure all contexts are valid and regisetred in ContextRegistry cls"""
-            registered_contexts = ContextRegistry().get_registered_contexts()
-            if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
-                unknown_context = list(set(contexts_request.contexts_list).difference(registered_contexts))
-                raise UnregisteredContextException(f'Requested context is unknown: {unknown_context}. '
-                                                   f'Registered contexts: {registered_contexts}')
-
         def _convert_context_format(context_list: List[Context]) -> Dict[str, Dict]:
             """Final preparation from list of contexts to kwarg dict, which is to be given to django render func"""
             converted_context = {}
@@ -428,7 +492,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                 converted_context[current_context.name] = current_context.value
             return converted_context
 
-        _check_context_registered(contexts_request)
+        self._check_context_registered(contexts_request)
         contexts = []
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
@@ -438,18 +502,6 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         merged_context: Dict[str, Dict] = _convert_context_format(contexts)
         return merged_context
 
-    def make_initials(self, contexts_request: ContextRequest):
-        """Initials, which should be done depending on context requested"""
-
-        # FIXME: MAKE SOME STRATEGY DEPENDING ON CONTEXT
-        self._clear_db()
-        # self._optical_system = self.fetch_optical_system()
-        # self._push_optical_system_to_db()
-        self._push_sides_to_db()
-        self._push_layers_to_db()
-        self._push_axes_to_db()
-        self._push_beams_to_db()
-
     @staticmethod
     def _clear_db():
         django_models_to_clear = [BoundaryView, AxisView, BeamView, SideView]
@@ -458,6 +510,15 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def fetch_optical_system(self) -> OpticalSystem:
         """Retrieve somehow an optical system"""
         return self._create_hardcoded_optical_system()
+
+    @staticmethod
+    def _check_context_registered(contexts_request: ContextRequest):
+        """Make sure all contexts are valid and regisetred in ContextRegistry cls"""
+        registered_contexts = ContextRegistry().get_registered_contexts()
+        if not all(cont in registered_contexts for cont in contexts_request.contexts_list):
+            unknown_context = list(set(contexts_request.contexts_list).difference(registered_contexts))
+            raise UnregisteredContextException(f'Requested context is unknown: {unknown_context}. '
+                                               f'Registered contexts: {registered_contexts}')
 
     @staticmethod
     def _create_hardcoded_optical_system(name: str = 'Hardcoded OptSys') -> OpticalSystem:
@@ -560,7 +621,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                 self._graph_objects[id(layer)] = points
                 # self._append_point_to_db(p, layer_view)
 
-    def _push_axes_to_db(self):
+    def push_axes_to_db(self):
         """Calculates position of optical axes and pushes them to db"""
         axes = self._calculate_axes()
         self._append_axes_to_db(axes)
