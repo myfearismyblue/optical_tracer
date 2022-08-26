@@ -1,18 +1,10 @@
 {% extends 'tracer/base.html' %}
 
 {% block content%}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Optical Tracer</title>
-
-</head>
-<body>
 {% load l10n %}         <!-- to change decimal divider from , to .-->
 
-<div class="container" style="margin-top: 100px;">
-    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">Toggle right offcanvas</button>
+<div class="container" style="margin-left: 1px;">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">Toggle menu</button>
 
     <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
       <div class="offcanvas-header">
@@ -69,7 +61,5 @@
     {% endfor %}
 
 </svg>
-</body>
-</html>
 
 {% endblock %}
