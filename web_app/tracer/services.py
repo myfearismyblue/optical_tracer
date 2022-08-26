@@ -752,7 +752,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
 class FormHandleBaseStrategy(ABC):
     """
-    Abstract cls to perform different handle strategies. Each strategy gets certain form,
+    Abstract cls to perform different form handle strategies. Each strategy gets certain form,
     performs handling of certain data type and returns name of a context in ContextRequest which is to be given to graph
     service in order to prepare this context"""
 
@@ -786,8 +786,8 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
     def pull_new_component(self, cleaned_data: Dict):
         """
-        Creates new optical component via cleaned data from form.
-        After creating pulls the component to builder.optical_system and traces vectors
+        Creates a new optical component via cleaned data from form.
+        After creating pushes the component to builder.optical_system and traces vectors
         """
         new_component = self._compose_new_component(cleaned_data)
         self.builder.add_components(components=new_component)
