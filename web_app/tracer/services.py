@@ -279,9 +279,10 @@ class CanvasInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
 
 
 class BoundariesInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+    """Responsible for correct initing of graph service if optical component should be drawn"""
 
     def init_graph_service(self):
-        ...
+        self._graph_service.push_layers_to_db()
 
 
 class AxisInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
@@ -293,9 +294,10 @@ class AxisInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
 
 
 class BeamsInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
+    """Responsible for correct initing of graph service if optical rays should be drawn"""
 
     def init_graph_service(self):
-        pass
+        self._graph_service.push_beams_to_db()
 
 
 class OpticalSystemInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
@@ -399,7 +401,11 @@ class CanvasPrepareContextStrategy(PrepareContextBaseStrategy):
 
 
 class OpticalSystemPrepareContextStrategy(PrepareContextBaseStrategy):
-    """""" # FIXME: make some docstring after certain implementation will be clear
+    """"""  # FIXME: make some docstring after certain implementation will be clear
+    __context_name = 'opt_sys_context'
+
+    def __init__(self):
+        self.context = Context(name=self.__context_name, value={})
 
     def prepare(self, context_request: ContextRequest, **kwargs) -> Context:
         raise NotImplementedError
@@ -454,7 +460,22 @@ class IGraphService(ABC):
         ...
 
 
-class GraphService(IGraphService):  # FIXME: looks like a godclass. split it with responsibilities
+def push_sides_to_db_if_not_exist() -> None:
+    """Sets boundary sides - left and right - to db"""
+
+    def _reset_sides():
+        SideView.objects.create(side='Left')
+        SideView.objects.create(side='Right')
+
+    query = SideView.objects.all()
+    stored_values = []
+    [stored_values.append(obj.side) for obj in query]
+    if len(query) != 2 or stored_values not in (['Left', 'Right'], ['Right', 'Left']):
+        _reset_sides()
+
+
+class GraphService(IGraphService):
+    """Responsible for """
     CANVAS_WIDTH = 1600  # px
     CANVAS_HEIGHT = 1200  # px
     SCALE = 1  # mm/px
@@ -470,7 +491,6 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         for item in contexts_request.contexts_list:
             itemInitGraphServiceStrategy: InitGraphServiceBaseStrategy = ContextRegistry().get_init_strategy(item)
             itemInitGraphServiceStrategy(contexts_request, self).init_graph_service()
-
 
     @property
     def optical_system(self):
@@ -504,7 +524,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
 
     @staticmethod
     def _clear_db():
-        django_models_to_clear = [BoundaryView, AxisView, BeamView, SideView]
+        django_models_to_clear = [BoundaryView, AxisView, BeamView]  # not SideView
         [cls.objects.all().delete() for cls in django_models_to_clear]
 
     def fetch_optical_system(self) -> OpticalSystem:
@@ -595,20 +615,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
                    'name': self.optical_system.name}
         OpticalSystemView.objects.create(**opt_sys)
 
-    def _push_sides_to_db(self) -> None:
-        """Sets boundary sides - left and right - to db"""
-
-        def _reset_sides():
-            SideView.objects.create(side='Left')
-            SideView.objects.create(side='Right')
-
-        query = SideView.objects.all()
-        stored_values = []
-        [stored_values.append(obj.side) for obj in query]
-        if len(query) != 2 or stored_values not in (['Left', 'Right'], ['Right', 'Left']):
-            _reset_sides()
-
-    def _push_layers_to_db(self):
+    def push_layers_to_db(self):
         """
         Fetches layers from optical system and pushes them to db.
         For each layers' curve calculates points it consists of and pushes them to db.
@@ -626,7 +633,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
         axes = self._calculate_axes()
         self._append_axes_to_db(axes)
 
-    def _push_beams_to_db(self):
+    def push_beams_to_db(self):
         beams = self._fetch_beams()
         self._append_beams_to_db(beams)
 
@@ -640,7 +647,7 @@ class GraphService(IGraphService):  # FIXME: looks like a godclass. split it wit
     def _append_layer_to_db(layer):
         boundary_serial = dill.dumps(layer)
         current_side = SideView.objects.filter(side='Left')[0] if layer.side == Side.LEFT else \
-            SideView.objects.filter(side='Right')[0]
+                       SideView.objects.filter(side='Right')[0]
         layer_view = BoundaryView(name=layer.name, side=current_side, memory_id=id(layer),
                                   boundary_serial=boundary_serial)
         layer_view.save()
