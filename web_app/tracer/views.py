@@ -1,8 +1,9 @@
 from typing import Dict, Callable
 
+from django import forms
 from django.shortcuts import render
 
-from .forms import AddComponent, ChooseOpticalSystem
+from .forms import AddComponentForm, ChooseOpticalSystemForm
 from .services import ContextRequest, GraphService, FormHandleBaseStrategy, AddComponentFormHandleService, \
     ChooseOpticalSystemFormHandleService, push_sides_to_db_if_not_exist
 
@@ -13,17 +14,17 @@ def index(request):
                   'scale': 1,
                   }
     contexts_list = ['canvas_context', 'axis_context']
-    formAddComponent = AddComponent(request.POST or None)
-    formChooseOpticalSystem = ChooseOpticalSystem(request.POST or None)
+    add_component_form: forms.Form = AddComponentForm(request.POST or None)
+    choose_optical_system_form: forms.Form = ChooseOpticalSystemForm(request.POST or None)
     if request.method == 'POST':
         # FIXME: make a convenient way of choosing strategy of form handling
-        if formAddComponent.is_valid():
+        if add_component_form.is_valid():
             # TODO: consider the way of fetching opt_sys
             form_handler: FormHandleBaseStrategy = AddComponentFormHandleService(optical_system=None)
-            form_handler.handle(formAddComponent)
-        if formChooseOpticalSystem.is_valid():
+            form_handler.handle(add_component_form)
+        if choose_optical_system_form.is_valid():
             form_handler: FormHandleBaseStrategy = ChooseOpticalSystemFormHandleService()
-            form_handler.handle(formChooseOpticalSystem)
+            form_handler.handle(choose_optical_system_form)
         contexts_list.extend(['boundaries_context', 'beams_context'])
         contexts_request = ContextRequest(contexts_list=contexts_list, graph_info=graph_info)
         push_sides_to_db_if_not_exist()     # sides are needed in add optical component form
@@ -34,6 +35,6 @@ def index(request):
         gr_service = GraphService(contexts_request=contexts_request)
 
     context: Dict = gr_service.prepare_contexts(contexts_request)
-    context = {**context, 'formChooseOpticalSystem': formChooseOpticalSystem, 'formAddComponent': formAddComponent}
+    context = {**context, 'formChooseOpticalSystem': choose_optical_system_form, 'addComponentForm': add_component_form}
 
     return render(request, 'tracer/tracer.html', context)

@@ -9,7 +9,7 @@ from django.forms import forms
 
 from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, \
     UnspecifiedFieldException, OPT_SYS_DIMENSIONS, IOpticalSystem
-from .forms import AddComponent, ChooseOpticalSystem
+from .forms import AddComponentForm, ChooseOpticalSystemForm
 from .models import AxisView, BoundaryView, BeamView, VectorView, SideView, OpticalSystemView
 
 
@@ -830,19 +830,19 @@ class FormHandleBaseStrategy(ABC):
 
 
 class AddComponentFormHandleService(FormHandleBaseStrategy):
-    """Responsible for handling django form AddComponent and forwarding it to domain model.
+    """Responsible for handling django form AddComponentForm and forwarding it to domain model.
     An optical system should be give while instance the cls, in which component is going to be added.
     If opt sys is not given, the new one will be created"""
 
     def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
-    def handle(self, form_instance: AddComponent):
-        if not isinstance(form_instance, AddComponent):
+    def handle(self, form_instance: AddComponentForm):
+        if not isinstance(form_instance, AddComponentForm):
             raise TypeError(f'Wrong type of argument for this type of handler.'
-                            f'Should be AddComponent form, but was given {type(AddComponent)}')
+                            f'Should be AddComponentForm form, but was given {type(AddComponentForm)}')
         if form_instance.is_valid():
-            self.pull_new_component(form_instance.cleaned_data)
+            self.create_and_pull_new_component(form_instance.cleaned_data)
         return ContextRegistry.get_context_name('opt_sys_context')
 
     @property
@@ -852,12 +852,12 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
             raise UnspecifiedFieldException(f'Optical system builder hasn''t been initialised properly. ')
         return self._builder
 
-    def pull_new_component(self, cleaned_data: Dict):
+    def create_and_pull_new_component(self, cleaned_data: Dict):
         """
         Creates a new optical component via cleaned data from form.
         After creating pushes the component to builder.optical_system and traces vectors
         """
-        new_component = self._compose_new_component(cleaned_data)
+        new_component: OpticalComponent = self._compose_new_component(cleaned_data)
         self.builder.add_components(components=new_component)
         self.builder.trace_all()
 
@@ -899,7 +899,7 @@ class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
             raise UnspecifiedFieldException(f'Optical system builder hasn''t been initialised properly. ')
         return self._builder
 
-    def handle(self, form_instance: ChooseOpticalSystem):
+    def handle(self, form_instance: ChooseOpticalSystemForm):
         formChooseOpticalSystem = form_instance
         if formChooseOpticalSystem.is_valid:
             modelOpticalSystemView = formChooseOpticalSystem.cleaned_data['optical_system']

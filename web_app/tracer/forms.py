@@ -3,7 +3,7 @@ from django import forms
 from .models import SideView, OpticalSystemView
 
 
-class AddComponent(forms.Form):
+class AddComponentForm(forms.Form):
     first_layer_name = forms.CharField(max_length=50, label='Имя первой границы')
     first_layer_side = forms.ModelChoiceField(label='Сторона:',
                                               queryset=SideView.objects.all(),
@@ -21,7 +21,7 @@ class AddComponent(forms.Form):
     component_name = forms.CharField(max_length=50, label='Название компонента')
 
 
-class ChooseOpticalSystem(forms.Form):
+class ChooseOpticalSystemForm(forms.Form):
     optical_system = forms.ModelChoiceField(label='Оптическая система:',
                                             queryset=OpticalSystemView.objects.all(),
                                             empty_label='Новая оптическая система')
