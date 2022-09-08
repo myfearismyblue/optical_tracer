@@ -23,13 +23,13 @@ class AddComponentForm(forms.Form):
     material_name = forms.CharField(max_length=50, label='Название среды')
     # light absorption in % while tracing 1 sm of thickness
     transmittance = forms.FloatField(max_value=100, min_value=0, label='Ослабление среды',
-                                     widget=forms.TextInput(attrs={"data-toggle":"tooltip",
-                                                                   "data-placement":"top",
-                                                                   "title":"Ослабление пучка в % при прохождении 1 см толщины"}))
+                                     widget=forms.NumberInput(attrs={"data-toggle":"tooltip",
+                                                                     "data-placement":"top",
+                                                                     "title":"Ослабление пучка в % при прохождении 1 см толщины"}))
     index = forms.FloatField(max_value=3, min_value=1, label='Показатель преломления среды',
-                             widget=forms.TextInput(attrs={"data-toggle": "tooltip",
-                                                           "data-placement": "top",
-                                                           "title": "для длины волны 589нм, обычно в пределах 1..2.65"}))
+                             widget=forms.NumberInput(attrs={"data-toggle": "tooltip",
+                                                             "data-placement": "top",
+                                                             "title": "для длины волны 589нм, обычно в пределах 1..2.65"}))
     component_name = forms.CharField(max_length=50, label='Название компонента')
 
 
