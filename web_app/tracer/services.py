@@ -482,8 +482,18 @@ class GraphService(IGraphService):
     OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __init__(self, contexts_request: ContextRequest, optical_system: OpticalSystem = None):
+        """
+        Check if the given contexts are valid, checks if the given optical system is valid,
+        if optical system is not provided than creates new one with builder,
+        clears off db of unnecessary data of previous sessions,
+        and make appropriate initions according to the given context reuest list
+        @param contexts_request: A ContextRequest which contains info for canvas graphing and info about things that shold be drawn
+        @param optical_system: If not given than an empty one will be created
+        """
 
         self._check_context_registered(contexts_request)
+        if not isinstance(optical_system, OpticalSystem):
+            optical_system = OpticalSystemBuilder().optical_system
         self._optical_system = optical_system
 
         # apply various initing configurations depending on what should be drawn
@@ -541,7 +551,7 @@ class GraphService(IGraphService):
                                                f'Registered contexts: {registered_contexts}')
 
     @staticmethod
-    def _create_hardcoded_optical_system(name: str = 'Hardcoded OptSys') -> OpticalSystem:
+    def _create_hardcoded_optical_system(name: str = 'Hardcoded Optical System') -> OpticalSystem:
         """Uses builder to creates an Optical System"""
         builder = OpticalSystemBuilder()
 
@@ -846,19 +856,20 @@ class FormHandleBaseStrategy(ABC):
         ...
 
 
-def fetch_optical_system_by_id(*, id: Optional[int]) -> Optional[IOpticalSystem]:
+def fetch_optical_system_by_id(*, id: Optional[int]) -> IOpticalSystem:
     """
-    Returns optical system using given id as pk.
-    If pk is None returns None
+    Returns optical system fetching it from db using given id as pk.
+    If pk is None or invalid returns an empty optical system
     """
     if id is None or not isinstance(id, int):
-        warn(f'Fetching optical system is unsuccessful. Given type(id): {type(id)}')
-        return None
+        warn(f'Fetching optical system is unsuccessful. Given type(id): {type(id)}. '
+             f'An empty optical system has been created')
+        return OpticalSystemBuilder().optical_system
     try:
-        modelOpticalSystemView = OpticalSystemView.objects.filter(pk=id)[0]
-    except IndexError:
-        warn(f'Optical system with the given pk is not found. pk={id}')
-        return None
+        modelOpticalSystemView = OpticalSystemView.objects.get(pk=id)
+    except OpticalSystemView.DoesNotExist:
+        warn(f'Optical system with the given pk is not found. pk={id}. An empty optical system has been created')
+        return OpticalSystemBuilder().optical_system
 
     optical_system = dill.loads(modelOpticalSystemView.opt_sys_serial)
     assert isinstance(optical_system, OpticalSystem), f'Fetched from DB: {optical_system}'
@@ -872,7 +883,7 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
     def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
         self.optical_system_id = opt_sys_id
-        optical_system: Optional[IOpticalSystem] = fetch_optical_system_by_id(id=opt_sys_id)
+        optical_system: IOpticalSystem = fetch_optical_system_by_id(id=opt_sys_id)   # empty optical system if id is invalid
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
     def handle(self, form_instance: AddComponentForm):
@@ -928,11 +939,16 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
     def update_optical_system(self) -> None:
         """
         Gets OpticalSystemView object with self.optical_system_id as pk.
+        If not exist in db, creates an empty model object
         Serializes the current optical system which is in self.builder.optical_system.
         Sets serialized optical system and it's name to that object and saves it.
         @return: None
         """
-        current_opt_sys_model = OpticalSystemView.objects.get(pk=self.optical_system_id)
+        try:
+            current_opt_sys_model = OpticalSystemView.objects.get(pk=self.optical_system_id)
+        except OpticalSystemView.DoesNotExist:
+            current_opt_sys_model = OpticalSystemView()
+
         current_opt_sys_model.opt_sys_serial = dill.dumps(self.builder.optical_system)
         current_opt_sys_model.name = self.builder.optical_system.name
         current_opt_sys_model.save()

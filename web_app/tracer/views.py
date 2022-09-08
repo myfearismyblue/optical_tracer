@@ -36,7 +36,7 @@ def index(request):
     else:
         add_component_form: forms.Form = AddComponentForm()
         choose_optical_system_form: forms.Form = ChooseOpticalSystemForm()
-        current_optical_system = fetch_optical_system_by_id(id=current_opt_sys_id)
+        current_optical_system = fetch_optical_system_by_id(id=current_opt_sys_id)  # None if id is invalid or None
 
     graph_info = {'canvas_width': 1600,
                   'canvas_height': 1200,
