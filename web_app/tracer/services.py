@@ -836,9 +836,9 @@ class FormHandleBaseStrategy(ABC):
 
     @optical_system_id.setter
     def optical_system_id(self, opt_sys_id):
-        opt_sys_id = (None if opt_sys_id is None else int(opt_sys_id))
-        if not isinstance(opt_sys_id, int):
+        if not isinstance(opt_sys_id, (int, type(None))):       # for 3.0<=python<=3.9
             raise TypeError(f'Wrong id for inner optical system in FormHandleService: {opt_sys_id}')
+        opt_sys_id = (None if opt_sys_id is None else int(opt_sys_id))
         self._optical_system_id = opt_sys_id
 
     @abstractmethod

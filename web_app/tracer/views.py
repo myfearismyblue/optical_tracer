@@ -18,8 +18,10 @@ def index(request):
     add_component_form: forms.Form = AddComponentForm(request.POST or None)
 
     # FIXME: suppose there is a better way of such handling
-    _ = request.COOKIES.get('current_opt_sys_id', None)
-    current_opt_sys_id: Optional[int] = (None if _ is None else int(_))
+    try:
+        current_opt_sys_id: Optional[int] = int(request.COOKIES.get('current_opt_sys_id'))
+    except ValueError:
+        current_opt_sys_id = None
     choose_optical_system_form: forms.Form = ChooseOpticalSystemForm(request.POST or None)
 
     if request.method == 'POST':

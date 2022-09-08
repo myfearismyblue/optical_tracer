@@ -23,5 +23,4 @@ class AddComponentForm(forms.Form):
 
 class ChooseOpticalSystemForm(forms.Form):
     optical_system = forms.ModelChoiceField(label='Оптическая система:',
-                                            queryset=OpticalSystemView.objects.all(),
-                                            empty_label='Новая оптическая система')
+                                            queryset=OpticalSystemView.objects.all(),)
