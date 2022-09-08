@@ -639,8 +639,11 @@ class GraphService(IGraphService):
 
     def _fetch_optical_components_layers(self) -> List[Layer]:
         res = []
-        for component in self._optical_system.components:
-            [res.append(l) for l in component._layers]
+        try:
+            for component in self.optical_system.components:
+                [res.append(l) for l in component._layers]
+        except UnspecifiedFieldException:
+            pass    # nothing here. suppose self.optical_system is None
         return res
 
     @staticmethod
@@ -739,17 +742,20 @@ class GraphService(IGraphService):
             canvas_z, canvas_y = self._convert_opticalcoords_to_canvascoords(opt_z, opt_y)
             return canvas_z, canvas_y
 
-        tmp_beams = self._optical_system.rays  # {beam_id: [Vectors]}
         beams = dict()
-        for id, vector_list in tmp_beams.items():
-            beams[id] = []
-            for vector in vector_list:
-                optical_system_point = _get_point_from_vector(vector)  # Tuple[float, float]
-                canvas_point = self._convert_opticalcoords_to_canvascoords(optical_system_point[0],
-                                                                           optical_system_point[1])
-                beams[id].append(canvas_point)
-            last_point = _get_canvas_vector_intersection(vector_list[-1])
-            beams[id].append(last_point)
+        try:
+            tmp_beams = self.optical_system.rays  # {beam_id: [Vectors]}
+            for id, vector_list in tmp_beams.items():
+                beams[id] = []
+                for vector in vector_list:
+                    optical_system_point = _get_point_from_vector(vector)  # Tuple[float, float]
+                    canvas_point = self._convert_opticalcoords_to_canvascoords(optical_system_point[0],
+                                                                               optical_system_point[1])
+                    beams[id].append(canvas_point)
+                last_point = _get_canvas_vector_intersection(vector_list[-1])
+                beams[id].append(last_point)
+        except UnspecifiedFieldException:
+            pass    # suppsoe self.optical_system is None so return empty dict
         return beams
 
     def _append_point_to_db(self, point: Tuple[int, int], model_layer) -> None:
@@ -829,12 +835,33 @@ class FormHandleBaseStrategy(ABC):
         ...
 
 
+def fetch_optical_system_by_id(*, id: Optional[int]) -> Optional[IOpticalSystem]:
+    """
+    Returns optical system using given id as pk.
+    If pk is None returns None
+    """
+    if id is None or not isinstance(id, int):
+        warn(f'Fetching optical system is unsuccessful. Given type(id): {type(id)}')
+        return None
+    try:
+        modelOpticalSystemView = OpticalSystemView.objects.filter(pk=id)[0]
+    except IndexError:
+        warn(f'Optical system with the given pk is not found. pk={id}')
+        return None
+
+    optical_system = dill.loads(modelOpticalSystemView.opt_sys_serial)
+    assert isinstance(optical_system, OpticalSystem), f'Fetched from DB: {optical_system}'
+    print(f'----fetch_optical_system_by_id-----{optical_system}')
+    return optical_system
+
+
 class AddComponentFormHandleService(FormHandleBaseStrategy):
     """Responsible for handling django form AddComponentForm and forwarding it to domain model.
-    An optical system should be give while instance the cls, in which component is going to be added.
+    An optical system pk should be give while instance the cls, in which component is going to be added.
     If opt sys is not given, the new one will be created"""
 
-    def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
+    def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
+        optical_system = fetch_optical_system_by_id(id=opt_sys_id)
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
     def handle(self, form_instance: AddComponentForm):
@@ -889,7 +916,8 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
     """Responsible for handling form of optical system choice"""
 
-    def __init__(self, *, optical_system: Optional[IOpticalSystem] = None) -> None:
+    def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
+        optical_system = fetch_optical_system_by_id(id=opt_sys_id)
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
     @property
