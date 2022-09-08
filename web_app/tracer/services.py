@@ -830,6 +830,17 @@ class FormHandleBaseStrategy(ABC):
     performs handling of certain data type and returns name of a context in ContextRequest which is to be given to graph
     service in order to prepare this context"""
 
+    @property
+    def optical_system_id(self):
+        return self._optical_system_id
+
+    @optical_system_id.setter
+    def optical_system_id(self, opt_sys_id):
+        opt_sys_id = (None if opt_sys_id is None else int(opt_sys_id))
+        if not isinstance(opt_sys_id, int):
+            raise TypeError(f'Wrong id for inner optical system in FormHandleService: {opt_sys_id}')
+        self._optical_system_id = opt_sys_id
+
     @abstractmethod
     def handle(self, form_instance: forms.Form) -> ContextRequest:
         ...
@@ -851,7 +862,6 @@ def fetch_optical_system_by_id(*, id: Optional[int]) -> Optional[IOpticalSystem]
 
     optical_system = dill.loads(modelOpticalSystemView.opt_sys_serial)
     assert isinstance(optical_system, OpticalSystem), f'Fetched from DB: {optical_system}'
-    print(f'----fetch_optical_system_by_id-----{optical_system}')
     return optical_system
 
 
@@ -861,6 +871,7 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
     If opt sys is not given, the new one will be created"""
 
     def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
+        self.optical_system_id = opt_sys_id
         optical_system = fetch_optical_system_by_id(id=opt_sys_id)
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
@@ -917,6 +928,7 @@ class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
     """Responsible for handling form of optical system choice"""
 
     def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
+        self.optical_system_id = opt_sys_id
         optical_system = fetch_optical_system_by_id(id=opt_sys_id)
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
@@ -931,6 +943,7 @@ class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
         formChooseOpticalSystem = form_instance
         if formChooseOpticalSystem.is_valid:
             modelOpticalSystemView = formChooseOpticalSystem.cleaned_data['optical_system']
+            self.optical_system_id = modelOpticalSystemView.pk
             name = modelOpticalSystemView.name
             optical_system = dill.loads(modelOpticalSystemView.opt_sys_serial)
             self.builder.reset(optical_system=optical_system)

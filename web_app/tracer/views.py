@@ -20,7 +20,6 @@ def index(request):
     # FIXME: suppose there is a better way of such handling
     _ = request.COOKIES.get('current_opt_sys_id', None)
     current_opt_sys_id: Optional[int] = (None if _ is None else int(_))
-
     choose_optical_system_form: forms.Form = ChooseOpticalSystemForm(request.POST or None)
 
     if request.method == 'POST':
@@ -33,6 +32,7 @@ def index(request):
             form_handler.handle(choose_optical_system_form)
         push_sides_to_db_if_not_exist()     # sides are needed in add optical component form
         current_optical_system = form_handler.builder.optical_system
+        current_opt_sys_id = form_handler.optical_system_id
     else:
         current_optical_system = fetch_optical_system_by_id(id=current_opt_sys_id)
 
