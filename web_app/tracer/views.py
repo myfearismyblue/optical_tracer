@@ -23,12 +23,12 @@ def index(request):
         if add_component_form.is_valid():
             form_handler: FormHandleBaseStrategy = AddComponentFormHandleService(opt_sys_id=current_opt_sys_id)
             form_handler.handle(add_component_form)
-            # if next form is submitted, let instance this one in a correct way
+            # if this form is submitted, let instance next one in a correct way
             choose_optical_system_form: forms.Form = ChooseOpticalSystemForm()
         if choose_optical_system_form.is_valid():
             form_handler: FormHandleBaseStrategy = ChooseOpticalSystemFormHandleService(opt_sys_id=current_opt_sys_id)
             form_handler.handle(choose_optical_system_form)
-            # if previous form is submitted, let instance this one in a correct way
+            # if this form is submitted, let instance previous one in a correct way
             add_component_form: forms.Form = AddComponentForm()
         push_sides_to_db_if_not_exist()     # sides are needed in add optical component form
         current_optical_system = form_handler.builder.optical_system
