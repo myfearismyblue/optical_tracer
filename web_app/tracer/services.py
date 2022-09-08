@@ -872,16 +872,16 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
     def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
         self.optical_system_id = opt_sys_id
-        optical_system = fetch_optical_system_by_id(id=opt_sys_id)
+        optical_system: Optional[IOpticalSystem] = fetch_optical_system_by_id(id=opt_sys_id)
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
     def handle(self, form_instance: AddComponentForm):
         if not isinstance(form_instance, AddComponentForm):
             raise TypeError(f'Wrong type of argument for this type of handler.'
-                            f'Should be AddComponentForm form, but was given {type(AddComponentForm)}')
+                            f'Should be AddComponentForm form, but was given {type(form_instance)}')
         if form_instance.is_valid():
-            self.create_and_pull_new_component(form_instance.cleaned_data)
-        return ContextRegistry.get_context_name('opt_sys_context')
+            self._create_and_pull_new_component(form_instance.cleaned_data)
+        return ContextRegistry().get_context_name('opt_sys_context')
 
     @property
     def builder(self) -> IOpticalSystemBuilder:
@@ -890,14 +890,16 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
             raise UnspecifiedFieldException(f'Optical system builder hasn''t been initialised properly. ')
         return self._builder
 
-    def create_and_pull_new_component(self, cleaned_data: Dict):
+    def _create_and_pull_new_component(self, cleaned_data: Dict):
         """
         Creates a new optical component via cleaned data from form.
         After creating pushes the component to builder.optical_system and traces vectors
+        After that updates optical system in db
         """
         new_component: OpticalComponent = self._compose_new_component(cleaned_data)
         self.builder.add_components(components=new_component)
         self.builder.trace_all()
+        self.update_optical_system()
 
     def _compose_new_component(self, cleaned_data: Dict) -> OpticalComponent:
         """Gets data from form.cleaned_data and uses OpticalSystemBuilder to compose a new OpticalComponent object."""
@@ -922,6 +924,18 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
                                                       layers=(first_new_layer, second_new_layer),
                                                       material=current_material)
         return new_component
+
+    def update_optical_system(self) -> None:
+        """
+        Gets OpticalSystemView object with self.optical_system_id as pk.
+        Serializes the current optical system which is in self.builder.optical_system.
+        Sets serialized optical system and it's name to that object and saves it.
+        @return: None
+        """
+        current_opt_sys_model = OpticalSystemView.objects.get(pk=self.optical_system_id)
+        current_opt_sys_model.opt_sys_serial = dill.dumps(self.builder.optical_system)
+        current_opt_sys_model.name = self.builder.optical_system.name
+        current_opt_sys_model.save()
 
 
 class ChooseOpticalSystemFormHandleService(FormHandleBaseStrategy):
