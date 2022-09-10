@@ -659,8 +659,8 @@ class GraphService(IGraphService):
     @staticmethod
     def _append_layer_to_db(layer):
         boundary_serial = dill.dumps(layer)
-        current_side = SideView.objects.filter(side='Left')[0] if layer.side == Side.LEFT else \
-                       SideView.objects.filter(side='Right')[0]
+        current_side = SideView.objects.get(side='Left') if layer.side == Side.LEFT else \
+            SideView.objects.get(side='Right')
         layer_view = BoundaryView(name=layer.name, side=current_side, memory_id=id(layer),
                                   boundary_serial=boundary_serial)
         layer_view.save()
