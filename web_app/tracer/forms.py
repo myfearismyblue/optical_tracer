@@ -4,19 +4,19 @@ from .models import SideView, OpticalSystemView
 
 
 class AddComponentForm(forms.Form):
-    first_layer_name = forms.CharField(max_length=50, label='Имя первой границы')
+    first_layer_name = forms.CharField(max_length=50, label='Имя первой границы', required = False)
     first_layer_side = forms.ModelChoiceField(label='Сторона:',
                                               queryset=SideView.objects.all(),
                                               empty_label=None)
-    first_layer_equation = forms.CharField(max_length=50, label='Уравнение поверхности',
+    first_layer_equation = forms.CharField(max_length=50, label='Уравнение поверхности', required = False,
                                            widget=forms.TextInput(attrs={"data-toggle":"tooltip",
                                                                          "data-placement":"top",
                                                                          "title":"Уравнение вида z=f(y), где z - оптическая ось"}))
-    second_layer_name = forms.CharField(max_length=50, label='Имя первой границы')
+    second_layer_name = forms.CharField(max_length=50, label='Имя второй границы', required = False)
     second_layer_side = forms.ModelChoiceField(label='Сторона:',
                                                queryset=SideView.objects.all(),
                                                empty_label=None)
-    second_layer_equation = forms.CharField(max_length=50, label='Уравнение поверхности',
+    second_layer_equation = forms.CharField(max_length=50, label='Уравнение поверхности', required = False,
                                            widget=forms.TextInput(attrs={"data-toggle":"tooltip",
                                                                          "data-placement":"top",
                                                                          "title":"Уравнение вида z=f(y), где z - оптическая ось"}))

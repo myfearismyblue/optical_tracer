@@ -23,6 +23,16 @@ class UnregisteredContextException(UserInfrastructuralBaseException):
     ...
 
 
+class WrongBoundaryEquationSyntaxError(UserInfrastructuralBaseException):
+    """Raises when wrong boundary equation syntax is used while form's submitting"""
+    ...
+
+
+class EmptyBoundaryEquationSyntaxError(UserInfrastructuralBaseException):
+    """Raises when empty boundary equation syntax is used while form's submitting"""
+    ...
+
+
 class IOpticalSystemBuilder(ABC):
     """Interface for any OptSys builder"""
 
@@ -137,7 +147,7 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
                                             f'Supposed to be Vector or iterable of Vectors, but was given: {type(vectors)}')
 
     def reset(self, *, optical_system: Optional[OpticalSystem] = OpticalSystem(),
-                       vectors: List[Optional[Vector]] = list()):
+              vectors: List[Optional[Vector]] = list()):
         """
         Resets builder instance with the provided optical system and vectors list.
         If args are not given, sets optical system empty with default values, sets vectors as empty list
@@ -197,12 +207,57 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
     @staticmethod
     def create_boundary_callable(*, equation: str) -> Callable:
         """Gets input as string, validates it and returns callable object"""
-        def _validate(equation):
-            # FIXME: !!!!
-            return True
+        math_variable_name = 'y'    # y is an independent variable, z = f(y) z - optical axes
+        chars_allowed = "".join(("+-*/0123456789.,() ", math_variable_name))
 
-        if _validate(equation):
-            return lambda y: eval(equation)
+        def _validate(equation: str) -> None:
+            """
+            Validates the given equation using set difference between input and allowed chars
+            @param equation: supposed to be a string containing the name of math variable, digits, comma, dot, and signs
+            @return: bool
+            """
+            assert isinstance(equation, str), f'Wrong equation type while validating in ' \
+                                              f'builder.create_boundary_callable. Was given {type(equation)}, ' \
+                                              f'but should be a string'
+            if not len(equation):
+                raise EmptyBoundaryEquationSyntaxError(f'Equation field is empty.')
+            not_allowed_input = set(equation) - set(chars_allowed)
+            if not_allowed_input:
+                raise WrongBoundaryEquationSyntaxError(f'Equation contains not allowed chars: {not_allowed_input}')
+
+        def _prepare_to_eval(equation: str) -> str:
+            """
+            Make input string.
+            Replace decimal separator
+            Make sure there is no ellipsises
+            """
+
+            def _remove_ellipsis():
+                """Shrinks all consecutive dots to a single dot"""
+                nonlocal equation
+                if len(equation) < 2:
+                    return
+                equation_lst = list(equation)
+                idx = 0
+                while idx < len(equation_lst) - 1:
+                    if equation_lst[idx] in ['.', ''] and equation_lst[idx + 1] in ['.', '']:
+                        equation_lst[idx + 1] = ''
+                    idx += 1
+                equation = ''.join(equation_lst)
+                return
+
+            equation = str(equation)
+            equation.replace(',', '.')
+            _remove_ellipsis()
+            return equation
+
+        _validate(equation)
+        equation = _prepare_to_eval(equation)
+        try:
+            func = lambda y: eval(equation)
+        except SyntaxError as e:
+            raise WrongBoundaryEquationSyntaxError from e
+        return func
 
     def create_vector(self, *, initial_point: Point, lum: float, w_length: float, theta: float, psi: float) -> Vector:
         new_vector = Vector(initial_point=initial_point, lum=lum, w_length=w_length, theta=theta, psi=psi)
@@ -236,7 +291,7 @@ class ContextRequest:
 @dataclass
 class Context:
     """DTO as a response to be forwarded to view.py"""
-    name: str   # context name. Specified in ContextRegistry
+    name: str  # context name. Specified in ContextRegistry
     value: Dict
 
 
@@ -260,7 +315,7 @@ class CanvasInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
     """
 
     def init_graph_service(self):
-        contexts_request = self._contexts_request   # just make synonym
+        contexts_request = self._contexts_request  # just make synonym
         self._graph_service._graph_objects = {}
         self._graph_service._canvas_dimensions = (contexts_request.graph_info['canvas_width'],
                                                   contexts_request.graph_info['canvas_height'])
@@ -272,10 +327,12 @@ class CanvasInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
 
         # ranges in which components to be drawn relatively to OPTICAL_SYSTEM_OFFSET in pixels here
         # coordinates are upside-down because of reversion of vertical axis
-        self._graph_service._height_draw_ranges = self._graph_service._offset[1] - self._graph_service._canvas_dimensions[1], \
-                                            self._graph_service._offset[1]
+        self._graph_service._height_draw_ranges = self._graph_service._offset[1] - \
+                                                  self._graph_service._canvas_dimensions[1], \
+                                                  self._graph_service._offset[1]
         self._graph_service._width_draw_ranges = -self._graph_service._offset[0], \
-                                           self._graph_service._canvas_dimensions[0] - self._graph_service._offset[0]
+                                                 self._graph_service._canvas_dimensions[0] - \
+                                                 self._graph_service._offset[0]
 
 
 class BoundariesInitGraphServiceStrategy(InitGraphServiceBaseStrategy):
@@ -423,7 +480,7 @@ class ContextRegistry:
                              'beams_context': {'prepare_context': BeamsPrepareContextStrategy,
                                                'init_graph_service': BeamsInitGraphServiceStrategy},
                              'opt_sys_context': {'prepare_context': OpticalSystemPrepareContextStrategy,
-                                                 'init_graph_service': OpticalSystemInitGraphServiceStrategy},}
+                                                 'init_graph_service': OpticalSystemInitGraphServiceStrategy}, }
 
     def get_prepare_strategy(self, context_name: str) -> PrepareContextBaseStrategy:
         if str(context_name) not in self.__registered_contexts:
@@ -653,7 +710,7 @@ class GraphService(IGraphService):
             for component in self.optical_system.components:
                 [res.append(l) for l in component._layers]
         except UnspecifiedFieldException:
-            pass    # nothing here. suppose self.optical_system is None
+            pass  # nothing here. suppose self.optical_system is None
         return res
 
     @staticmethod
@@ -765,7 +822,7 @@ class GraphService(IGraphService):
                 last_point = _get_canvas_vector_intersection(vector_list[-1])
                 beams[id].append(last_point)
         except UnspecifiedFieldException:
-            pass    # suppsoe self.optical_system is None so return empty dict
+            pass  # suppsoe self.optical_system is None so return empty dict
         return beams
 
     def _append_point_to_db(self, point: Tuple[int, int], model_layer) -> None:
@@ -846,7 +903,7 @@ class FormHandleBaseStrategy(ABC):
 
     @optical_system_id.setter
     def optical_system_id(self, opt_sys_id):
-        if not isinstance(opt_sys_id, (int, type(None))):       # for 3.0<=python<=3.9
+        if not isinstance(opt_sys_id, (int, type(None))):  # for 3.0<=python<=3.9
             raise TypeError(f'Wrong id for inner optical system in FormHandleService: {opt_sys_id}')
         opt_sys_id = (None if opt_sys_id is None else int(opt_sys_id))
         self._optical_system_id = opt_sys_id
@@ -883,7 +940,8 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
     def __init__(self, *, opt_sys_id: Optional[int] = None) -> None:
         self.optical_system_id = opt_sys_id
-        optical_system: IOpticalSystem = fetch_optical_system_by_id(id=opt_sys_id)   # empty optical system if id is invalid
+        optical_system: IOpticalSystem = fetch_optical_system_by_id(
+            id=opt_sys_id)  # empty optical system if id is invalid
         self._builder: IOpticalSystemBuilder = OpticalSystemBuilder(optical_system=optical_system)
 
     def handle(self, form_instance: AddComponentForm):
@@ -892,6 +950,7 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
                             f'Should be AddComponentForm form, but was given {type(form_instance)}')
         if form_instance.is_valid():
             self._create_and_pull_new_component(form_instance.cleaned_data)
+
         return ContextRegistry().get_context_name('opt_sys_context')
 
     @property
@@ -907,36 +966,49 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
         After creating pushes the component to builder.optical_system and traces vectors
         After that updates optical system in db
         """
-        new_component: OpticalComponent = self._compose_new_component(cleaned_data)
-        self.builder.add_components(components=new_component)
+        try:
+            new_component: OpticalComponent = self._compose_new_component(cleaned_data)
+            self.builder.add_components(components=new_component)
+        except WrongBoundaryEquationSyntaxError as e:
+            warn(f'WrongBoundaryEquationSyntaxError is occurred. No component is added. {e.args}')
+            pass  # if any equation is wrong just do nothing with optical system
         self.builder.trace_all()
-        self.update_optical_system()
+        self._update_optical_system()
 
     def _compose_new_component(self, cleaned_data: Dict) -> OpticalComponent:
         """Gets data from form.cleaned_data and uses OpticalSystemBuilder to compose a new OpticalComponent object."""
-        first_layer_side = self.builder.create_side(side=str(cleaned_data['first_layer_side']))
-        first_layer_boundary: Callable = self.builder.create_boundary_callable(
-            equation=cleaned_data['first_layer_equation'])  # FIXME: Make alot validations here
-        first_new_layer = self.builder.create_layer(name=cleaned_data['first_layer_name'],
-                                                    side=first_layer_side,
-                                                    boundary=first_layer_boundary)
+        layers = [] # layers to build the component
+        try:
+            first_layer_side = self.builder.create_side(side=str(cleaned_data['first_layer_side']))
+            first_layer_boundary: Callable = self.builder.create_boundary_callable(
+                equation=cleaned_data['first_layer_equation'])
+            first_new_layer = self.builder.create_layer(name=cleaned_data['first_layer_name'],
+                                                        side=first_layer_side,
+                                                        boundary=first_layer_boundary)
+            layers.append(first_new_layer)
+        except EmptyBoundaryEquationSyntaxError:
+            pass  # if equation is empty just do nothing
 
-        second_layer_side = self.builder.create_side(side=str(cleaned_data['second_layer_side']))
-        second_layer_boundary: Callable = self.builder.create_boundary_callable(
-            equation=cleaned_data['second_layer_equation'])  # FIXME: Make alot validations here
-        second_new_layer = self.builder.create_layer(name=cleaned_data['second_layer_name'],
-                                                     side=second_layer_side,
-                                                     boundary=second_layer_boundary)
+        try:
+            second_layer_side = self.builder.create_side(side=str(cleaned_data['second_layer_side']))
+            second_layer_boundary: Callable = self.builder.create_boundary_callable(
+                equation=cleaned_data['second_layer_equation'])
+            second_new_layer = self.builder.create_layer(name=cleaned_data['second_layer_name'],
+                                                         side=second_layer_side,
+                                                         boundary=second_layer_boundary)
+            layers.append(second_new_layer)
+        except EmptyBoundaryEquationSyntaxError:
+            pass  # if equation is empty just do nothing with optical system
 
         current_material = self.builder.create_material(name=cleaned_data['material_name'],
                                                         transmittance=cleaned_data['transmittance'],
                                                         refractive_index=cleaned_data['index'])
         new_component = self.builder.create_component(name=cleaned_data['component_name'],
-                                                      layers=(first_new_layer, second_new_layer),
+                                                      layers=layers,
                                                       material=current_material)
         return new_component
 
-    def update_optical_system(self) -> None:
+    def _update_optical_system(self) -> None:
         """
         Gets OpticalSystemView object with self.optical_system_id as pk.
         If not exist in db, creates an empty model object
