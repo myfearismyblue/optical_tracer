@@ -533,10 +533,6 @@ def push_sides_to_db_if_not_exist() -> None:
 
 class GraphService(IGraphService):
     """Responsible for """
-    CANVAS_WIDTH = 1600  # px
-    CANVAS_HEIGHT = 1200  # px
-    SCALE = 1  # mm/px
-    OPTICAL_SYSTEM_OFFSET = (+1 * CANVAS_WIDTH // 3, +1 * CANVAS_HEIGHT // 3)  # in pixels here
 
     def __init__(self, contexts_request: ContextRequest, optical_system: OpticalSystem = None):
         """
@@ -735,11 +731,9 @@ class GraphService(IGraphService):
             which the boundary is consisted of with given step in pixels
             """
             assert isinstance(boundary_func, Callable), f'Wrong call: {boundary_func}'
-            ys_in_mm = (el * self.SCALE for el in range(self._height_draw_ranges[0], self._height_draw_ranges[1], step))
+            ys_in_mm = (el * self._scale for el in range(self._height_draw_ranges[0], self._height_draw_ranges[1], step))
             zs_in_mm = (boundary_func(y) for y in ys_in_mm)
-            points = list(self._convert_opticalcoords_to_canvascoords(z, y, scale=self.SCALE,
-                                                                      absciss_offset=self.OPTICAL_SYSTEM_OFFSET[0],
-                                                                      ordinate_offset=self.OPTICAL_SYSTEM_OFFSET[1])
+            points = list(self._convert_opticalcoords_to_canvascoords(z, y)
                           for z, y in zip(zs_in_mm, ys_in_mm))
             return points
 
@@ -759,7 +753,7 @@ class GraphService(IGraphService):
                     'name': 'abscissa',
                     'x0': 0,
                     'y0': 0 + self._offset[1],
-                    'x1': self.CANVAS_WIDTH,
+                    'x1': self._canvas_dimensions[0],
                     'y1': self._offset[1],
                     'memory_id': 0,
                     }
@@ -770,7 +764,7 @@ class GraphService(IGraphService):
                     'x0': self._offset[0],
                     'y0': 0,
                     'x1': self._offset[0],
-                    'y1': self.CANVAS_HEIGHT,
+                    'y1': self._canvas_dimensions[1],
                     'memory_id': 0,
                     }
         ordinate['memory_id'] = id(ordinate)
@@ -846,25 +840,26 @@ class GraphService(IGraphService):
             for point in beam_points:
                 VectorView.objects.create(beam=model_beam, x0=point[0], y0=point[1])
 
-    @staticmethod
-    def _convert_opticalcoords_to_canvascoords(opt_absciss: float, opt_ordinate: float, scale: float = SCALE,
-                                               absciss_offset: int = OPTICAL_SYSTEM_OFFSET[0],
-                                               ordinate_offset: int = OPTICAL_SYSTEM_OFFSET[1]) -> Tuple[int, int]:
+
+    def _convert_opticalcoords_to_canvascoords(self, opt_absciss: float, opt_ordinate: float) -> Tuple[int, int]:
         """ Maps optical coords in mm (opt_absciss, opt_ordinate) to a canvas coords in pix
             scale - in pixels per mm
             returns: tuple of canvas (abscissa, ordinate)
         """
+        scale: float = self._scale
+        absciss_offset: int = self._offset[0]
+        ordinate_offset: int = self._offset[1]
         canvas_abscissa = int(opt_absciss * scale + absciss_offset)
         canvas_ordinate = int(ordinate_offset - opt_ordinate * scale)  # minus because of canvas ordinate directed down
         return canvas_abscissa, canvas_ordinate
 
-    @staticmethod
-    def _convert_canvascoords_to_optical(canvas_abscissa: int, canvas_ordinate: int, *, scale: float = SCALE,
-                                         absciss_offset: int = OPTICAL_SYSTEM_OFFSET[0],
-                                         ordinate_offset: int = OPTICAL_SYSTEM_OFFSET[1]) -> Tuple[float, float]:
+    def _convert_canvascoords_to_optical(self, canvas_abscissa: int, canvas_ordinate: int) -> Tuple[float, float]:
         """ Returns real coordinates in mm
         scale - in pixels per mm
         """
+        scale: float = self._scale
+        absciss_offset: int = self._offset[0]
+        ordinate_offset: int = self._offset[1]
         opt_absciss = (canvas_abscissa - absciss_offset) / scale
         opt_ordinate = (ordinate_offset - canvas_ordinate) / scale
         return opt_absciss, opt_ordinate
