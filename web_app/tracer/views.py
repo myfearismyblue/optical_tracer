@@ -10,7 +10,7 @@ from .services import ContextRequest, GraphService, FormHandleBaseStrategy, AddC
 
 def index(request):
     # FIXME: suppose there is a better way of such handling
-    try:
+    try:        # check out if a user had previously chosen or built opt sys
         current_opt_sys_id: Optional[int] = int(request.COOKIES.get('current_opt_sys_id'))
     except ValueError:
         current_opt_sys_id = None

@@ -372,7 +372,9 @@ class PrepareContextBaseStrategy(ABC):
 
     @staticmethod
     def _stringify_points_for_template(points: Iterable) -> str:
-        """Prepares coords to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2..." >"""
+        """
+        Prepares coords [(x0, y0), (y1, y1), ...] to be forwarded in a <svg> <polyline points="x0, y0 x1, y1 x2, y2...">
+        """
         res = ''
         for p in points:
             if hasattr(p, 'x0'):  # TODO: Refactor this shit
@@ -576,7 +578,7 @@ class GraphService(IGraphService):
             return converted_context
 
         self._check_context_registered(contexts_request)
-        contexts = []
+        contexts = []   # just a simple list, which afterwards will be squashed to dict
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
             prepared_context = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
