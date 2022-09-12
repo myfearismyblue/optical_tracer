@@ -7,10 +7,18 @@ from warnings import warn
 import dill
 from django.forms import forms
 
-from optical_tracer import Side, Layer, Material, OpticalComponent, OpticalSystem, Vector, Point, \
-    UnspecifiedFieldException, OPT_SYS_DIMENSIONS, IOpticalSystem
+from optical_tracer import (IOpticalSystem,
+                            Layer,
+                            Material,
+                            OpticalComponent,
+                            OpticalSystem,
+                            OPT_SYS_DIMENSIONS,
+                            Vector,
+                            Point,
+                            Side,
+                            UnspecifiedFieldException,)
 from .forms import AddComponentForm, ChooseOpticalSystemForm
-from .models import AxisView, BoundaryView, BeamView, VectorView, SideView, OpticalSystemView
+from .models import AxisView, BeamView, BoundaryView, OpticalSystemView, SideView, VectorView
 
 
 class UserInfrastructuralBaseException(Exception):

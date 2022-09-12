@@ -1,11 +1,16 @@
-from typing import Dict, Callable, Optional
+from typing import Dict,  Optional
 
 from django import forms
 from django.shortcuts import render
 
 from .forms import AddComponentForm, ChooseOpticalSystemForm
-from .services import ContextRequest, GraphService, FormHandleBaseStrategy, AddComponentFormHandleService, \
-    ChooseOpticalSystemFormHandleService, push_sides_to_db_if_not_exist, fetch_optical_system_by_id
+from .services import (AddComponentFormHandleService,
+                                                    ChooseOpticalSystemFormHandleService,
+                                                    ContextRequest,
+                                                    GraphService,
+                                                    FormHandleBaseStrategy,
+                                                    push_sides_to_db_if_not_exist,
+                                                    fetch_optical_system_by_id,)
 
 
 def index(request):
