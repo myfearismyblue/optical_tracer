@@ -3,7 +3,7 @@ from math import pi
 import pytest
 from pytest import approx
 
-from optical_tracer import Vector, Point, UnspecifiedFieldException, ObjectKeyWordsMismatchException
+from core import Vector, Point, UnspecifiedFieldException, ObjectKeyWordsMismatchException
 from tests.test_OpticalSystem import TOL
 
 init_point = Point(x=-1, z=99.00000001, y="-0.1")

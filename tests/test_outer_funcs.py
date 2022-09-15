@@ -3,7 +3,7 @@ from math import sqrt
 import pytest
 from pytest import approx
 
-from optical_tracer import get_distance, Point, UnspecifiedFieldException
+from core import get_distance, Point, UnspecifiedFieldException
 
 
 def create_points():

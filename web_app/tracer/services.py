@@ -7,16 +7,17 @@ from warnings import warn
 import dill
 from django.forms import forms
 
-from optical_tracer import (IOpticalSystem,
-                            Layer,
-                            Material,
-                            OpticalComponent,
-                            OpticalSystem,
-                            OPT_SYS_DIMENSIONS,
-                            Vector,
-                            Point,
-                            Side,
-                            UnspecifiedFieldException,)
+from core import (IOpticalSystem,
+                  Layer,
+                  Material,
+                  OpticalComponent,
+                  OpticalSystem,
+                  OPT_SYS_DIMENSIONS,
+                  Vector,
+                  Point,
+                  Side,
+                  UnspecifiedFieldException)
+
 from .forms import AddComponentForm, ChooseOpticalSystemForm
 from .models import AxisView, BeamView, BoundaryView, OpticalSystemView, SideView, VectorView
 
@@ -215,7 +216,7 @@ class OpticalSystemBuilder(IOpticalSystemBuilder):
     @staticmethod
     def create_boundary_callable(*, equation: str) -> Callable:
         """Gets input as string, validates it and returns callable object"""
-        math_variable_name = 'y'    # y is an independent variable, z = f(y) z - optical axes
+        math_variable_name = 'y'  # y is an independent variable, z = f(y) z - optical axes
         chars_allowed = "".join(("+-*/0123456789.,() ", math_variable_name))
 
         def _validate(equation: str) -> None:
@@ -586,7 +587,7 @@ class GraphService(IGraphService):
             return converted_context
 
         self._check_context_registered(contexts_request)
-        contexts = []   # just a simple list, which afterwards will be squashed to dict
+        contexts = []  # just a simple list, which afterwards will be squashed to dict
         for item in contexts_request.contexts_list:
             itemPrepareStrategy: PrepareContextBaseStrategy = ContextRegistry().get_prepare_strategy(item)
             prepared_context = itemPrepareStrategy().prepare(contexts_request, layer_points=self._graph_objects)
@@ -850,7 +851,6 @@ class GraphService(IGraphService):
             for point in beam_points:
                 VectorView.objects.create(beam=model_beam, x0=point[0], y0=point[1])
 
-
     def _convert_opticalcoords_to_canvascoords(self, opt_absciss: float, opt_ordinate: float) -> Tuple[int, int]:
         """ Maps optical coords in mm (opt_absciss, opt_ordinate) to a canvas coords in pix
             scale - in pixels per mm
@@ -982,7 +982,7 @@ class AddComponentFormHandleService(FormHandleBaseStrategy):
 
     def _compose_new_component(self, cleaned_data: Dict) -> OpticalComponent:
         """Gets data from form.cleaned_data and uses OpticalSystemBuilder to compose a new OpticalComponent object."""
-        layers = [] # layers to build the component
+        layers = []  # layers to build the component
         try:
             first_layer_side = self.builder.create_side(side=str(cleaned_data['first_layer_side']))
             first_layer_boundary: Callable = self.builder.create_boundary_callable(

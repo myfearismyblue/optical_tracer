@@ -1,8 +1,3 @@
-import os
-import sys
-
-sys.path.append(os.path.abspath('..'))  # magic to make optical_tracer to be found
-
 from django.db import models
 
 
@@ -64,9 +59,3 @@ class OpticalSystemView(models.Model):
 
     def __str__(self):
         return self.name
-
-
-
-
-
-

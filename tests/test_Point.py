@@ -1,6 +1,6 @@
 import pytest
 
-from optical_tracer import ObjectKeyWordsMismatchException, Point, UnspecifiedFieldException
+from core import ObjectKeyWordsMismatchException, Point, UnspecifiedFieldException
 
 
 @pytest.mark.parametrize('coords, expected', [({'y': '10','x': -0 , 'z': 1.00000001}, {'x': 0, 'y': 10, 'z':1.00000001 })])

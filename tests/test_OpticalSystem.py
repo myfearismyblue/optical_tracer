@@ -4,9 +4,7 @@ from typing import List, Tuple, Union
 import pytest
 from pytest import approx
 
-from optical_tracer import Material, Point
-from optical_tracer import Vector
-from optical_tracer import VectorOutOfComponentException
+from core import Material, Point, Vector, VectorOutOfComponentException
 
 deg = 2 * pi / 360
 Air = Material(name="Air", transmittance=0, refractive_index=1)

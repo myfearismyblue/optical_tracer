@@ -2,7 +2,7 @@ import tkinter as tk
 from math import pi, tan, sin
 from typing import Callable, Tuple, List
 
-from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
+from core import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
 
 DEBUG = False
 CANVAS_WIDTH = 800

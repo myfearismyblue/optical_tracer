@@ -1,7 +1,7 @@
 import pytest
 from pytest import approx
 
-from optical_tracer import Point, Layer, Side, UnspecifiedFieldException
+from core import Point, Layer, Side, UnspecifiedFieldException
 from tests.test_OpticalSystem import TOL
 
 point = [Point(x=0, y=0.0001, z=0),

@@ -1,6 +1,6 @@
 import pytest
 
-from optical_tracer import Side, reversed_side
+from core import Side, reversed_side
 
 
 @pytest.mark.slow

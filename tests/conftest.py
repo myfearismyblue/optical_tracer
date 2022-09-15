@@ -1,6 +1,6 @@
 import pytest
 
-from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, Side, Vector
+from core import Layer, Material, OpticalComponent, OpticalSystem, Point, Side, Vector
 
 
 @pytest.fixture
