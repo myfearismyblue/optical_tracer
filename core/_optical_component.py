@@ -173,7 +173,13 @@ class Layer(ICheckable):
     Each optical component is represented by intersection of layers. Each layer has name, boundary and active side,
     where material supposed to be
     """
-    __slots__ = '_name', '_boundary', '_side'
+    __slots__ = '_name', '_boundary', '_side', '_intersection_points'   # points of curve
+                                                                        # between which physical boundary located
+
+    def __str__(self):
+
+        attrs_str = [": ".join((attr[1:], f'{getattr(self, attr[1:])} ')) for attr in self.__slots__]
+        return f'{self.__class__.__name__}: {str(attrs_str)}'
 
     def _validate_inputs(self, *args, **kwargs):
         expected_attrs = ['name', 'boundary', 'side']
@@ -206,6 +212,10 @@ class Layer(ICheckable):
     def side(self, _val: Side):
         temp_val = LayerCheckStrategy.validate_side({'side': _val})
         self._side = temp_val
+
+    @property
+    def intersection_points(self):
+        return self._intersection_points
 
     def contains_point(self, *, point: Point) -> bool:
         """

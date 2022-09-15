@@ -12,8 +12,7 @@ from ._exceptions import ObjectKeyWordsMismatchException, UnspecifiedFieldExcept
 class ICheckable(ABC):
     """
     Interface for object with necessity of input vars' validation.
-    All vars to validate are to be forwarded to attrs with name like '_val',
-    which are defined in slots of a concrete cls
+    All vars to validate are to be forwarded to attrs with name like '_val'
     """
 
     def __init__(self, *args, **kwargs):
@@ -22,12 +21,19 @@ class ICheckable(ABC):
 
     @abstractmethod
     def _validate_inputs(self, *args, **kwargs):
-        pass
+        ...
 
     def _throw_inputs(self, *args, **kwargs):
-        """Throwing only for attrs starts with _underscore"""
-        [setattr(self, attr, kwargs[attr[1:]]) if attr.startswith('_') else setattr(self, attr, kwargs[attr])
-         for attr in self.__slots__]
+        """
+        Throwing attrs adding _underscore if it hasn't it,
+        if there is a special slots which are not to be set with expected kwargs, then set it with None
+        """
+        [setattr(self, attr, kwargs[attr]) if attr.startswith('_')  # if kwarg already starts with _ - throw it
+         else setattr(self, ''.join(('_', attr)), kwargs[attr]) for attr in kwargs.keys()]  # else add _ as prefix
+
+        extra_slots = set(self.__slots__) - set((item if item.startswith('_') else
+                                                 ''.join(('_', item)) for item in kwargs.keys()))
+        [setattr(self, item, None) for item in extra_slots]
 
 
 class BaseCheckStrategy(ABC):
@@ -41,25 +47,23 @@ class BaseCheckStrategy(ABC):
         3. Make abstract validation
         """
         self._ensure___slots__ok(cls, expected_attrs)
-        self._check_kwarg_completeness(cls, kwargs)
+        self._check_kwarg_completeness(cls, kwargs, expected_attrs)
         kwargs = self.validate(*args, **kwargs)
         return kwargs
 
     @staticmethod
     def _ensure___slots__ok(cls, expected_attrs):
-        """Inner assertion to ensure validation to be done for all __slots__ """
-        assert all(
-            (f'{sl_attr[1:]}' if sl_attr.startswith('_') else sl_attr in expected_attrs for sl_attr in cls.__slots__))
+        """Inner assertion to ensure that all expected inputs in slots """
         assert all((f'_{exp_attr}' in cls.__slots__ for exp_attr in expected_attrs))
 
     @staticmethod
-    def _check_kwarg_completeness(cls, kwargs):
+    def _check_kwarg_completeness(cls, kwargs, expected_attrs):
         """
         Checks if it's enough kwargs and if it's more than needed.
         Raises  ObjectKeyWordsMismatchException if not enough, or if there are some extra kwargs
         """
 
-        expected_kwargs_names = [kw[1:] if kw.startswith('_') else kw for kw in cls.__slots__]
+        expected_kwargs_names = [kw[1:] if kw.startswith('_') else kw for kw in expected_attrs]
 
         if not all(coord in kwargs for coord in expected_kwargs_names):
             raise ObjectKeyWordsMismatchException(f'Not enough args. Should exists {expected_kwargs_names},'
