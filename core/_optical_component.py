@@ -19,10 +19,11 @@ from scipy.optimize import fsolve
 import numpy as np
 
 from ._config import *
-from ._exceptions import (NoIntersectionWarning,
+from ._exceptions import (NoVectorIntersectionWarning,
                           UnspecifiedFieldException,
                           VectorNotOnBoundaryException,
-                          VectorOutOfComponentException)
+                          VectorOutOfComponentException,
+                          NoLayersIntersectionException)
 from ._rays import Point, Vector, get_distance, ICheckable, BaseCheckStrategy
 
 
@@ -249,13 +250,13 @@ class Layer(ICheckable):
             probable_y_intersections = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
         except ZeroDivisionError:
             if surface(vector.initial_point.y) is None:  # FIXME: actual behaviour of surface() has to be considered
-                raise NoIntersectionWarning
+                raise NoVectorIntersectionWarning
             else:
                 probable_y_intersections = [vector.initial_point.y]
         # FIXME: throw input as attr. Think about this
         approved_ys = self._check_probable_intersections(probable_ys=probable_y_intersections, vector=vector)
         if not len(approved_ys):
-            raise NoIntersectionWarning
+            raise NoVectorIntersectionWarning
         # [(y, z), .....]
         approved_zs = [surface(y) for y in approved_ys]
         assert len(approved_zs) == len(approved_ys)
@@ -291,7 +292,7 @@ class Layer(ICheckable):
             difference = abs(surface(current_y) - line(current_y))
             if difference > vector.w_length * NANOMETRE / 4:  # quarter part of wave length
                 if DEBUG:
-                    warn(f'\nLine and surface difference intersections: {difference}', NoIntersectionWarning)
+                    warn(f'\nLine and surface difference intersections: {difference}', NoVectorIntersectionWarning)
                 # FIXME: check measures meters or milimeters?
                 return False
             return True
@@ -349,7 +350,7 @@ class Layer(ICheckable):
             if DEBUG:
                 warn(f'\nSurface "{self.name}" is out of vectors direction: '
                      f'theta={vector.theta:.3f}, '
-                     f'intersection at (y,z)=({current_y:.3f}, {surface(current_y):.3f})', NoIntersectionWarning)
+                     f'intersection at (y,z)=({current_y:.3f}, {surface(current_y):.3f})', NoVectorIntersectionWarning)
             return False
 
         approved_ys = []
@@ -403,7 +404,7 @@ def _find_closest_intersection(*, approved_intersections: List[Point], vector: V
     In the list of points finds the closest point to vector
     """
     if not len(approved_intersections):
-        raise NoIntersectionWarning('Nothing to be closest, approved layer''s intersections is empty')
+        raise NoVectorIntersectionWarning('Nothing to be closest, approved layer''s intersections is empty')
     min_distance = float('inf')
     cand = None
     for point in approved_intersections:
@@ -508,14 +509,14 @@ class OpticalComponent:
         for layer in self._layers:
             try:
                 intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
-            except NoIntersectionWarning:
+            except NoVectorIntersectionWarning:
                 intersection_point = None
 
             intersection_point_is_inside = self.check_if_point_is_inside(point=intersection_point)
             if intersection_point_is_inside:
                 found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
-            raise NoIntersectionWarning
+            raise NoVectorIntersectionWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
                                                    vector=vector)
 
@@ -549,6 +550,64 @@ class OpticalComponent:
         """Gets distance in mm and returns attenuation"""
         return 1 - (1 - self.material.transmittance * PERCENT) ** (distance * MILLIMETRE / CENTIMETRE)
 
+    @staticmethod
+    def _get_layer_segments(*, current_layer: Layer, bounding_layer: Layer) -> List[Tuple[Point, Point]]:
+        """
+        Finds curve segments of a Layer's boundary which are cut out by boundary of another Layer
+        in case of layers' intersection. If no intersection found raises NoLayersIntersectionException.
+        @param current_layer: the layer of which the segments to be found
+        @param bounding_layer: the layer which cuts out segments on the current_layer
+        @return:a list of tuples of Points between which the segment of curve is bounded
+        """
+
+        def _find_curve_intersections() -> List[Tuple[float, float]]:
+            """
+            Finds all points of intersection of two curves sorted in descending of y
+            @param current_layer: the first layer with certain boundary
+            @param bounding_layer: the second layer with certain boundary
+            @return: List of intersections[ (float, float), ... ]
+            """
+            current_curve: Callable = current_layer.boundary
+            bounding_curve: Callable = bounding_layer.boundary
+            equation: Callable = lambda y: current_curve(y) - bounding_curve(y)
+            ys: List[float] = sorted(list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS))), reverse=True)
+            if not ys:
+                return []
+            zs: List[float] = [current_curve(y) for y in ys]
+            return list(zip(ys, zs))  # all found curves' intersections sorted by y
+
+        def _is_first_segment_starts_on_minus_inf():
+            """In a case when intersection of layers starts on minus infinity"""
+            # order of intersections is descending. let start from negative ys and proceed to positive ones
+            first_intersection_point = Point(x=0, y=intersections[-1][0], z=intersections[-1][1])
+            current_curve_tangential = current_layer.get_tangential_angle(point=first_intersection_point)
+            bounding_curve_tangential = bounding_layer.get_tangential_angle(point=first_intersection_point)
+            bounding_curve_side: Side = bounding_layer.side
+            is_bounding_curve_lefter = bounding_curve_tangential > current_curve_tangential
+            # FIXME: consider the special case than tangentials are equal
+            is_bounding_curve_side_left = bounding_curve_side == Side.LEFT
+            return is_bounding_curve_lefter == is_bounding_curve_side_left
+
+        intersections = _find_curve_intersections()
+        if not intersections:
+            raise NoLayersIntersectionException(f'No intersection of layers: {current_layer, bounding_layer}')
+
+        if _is_first_segment_starts_on_minus_inf():
+            intersections.append((float('-inf'), current_layer.boundary(float('-inf'))))
+
+        res = []
+        while intersections:
+            first_point: Tuple[float, float] = intersections.pop()
+
+            try:
+                second_point: Tuple[float, float] = intersections.pop()
+            except IndexError:  # the last point remains without pair means, that last segment ends on +inf
+                second_point: Tuple[float, float] = (float('+inf'), current_layer.boundary(float('+inf')))
+
+            res.append((Point.set_coords(x=0, y=first_point[0], z=first_point[1]),
+                        Point.set_coords(x=0, y=second_point[0], z=second_point[1])))
+        return res
+
 
 class DefaultOpticalComponent(OpticalComponent):
     """Special cls for default background component with overloaded methods"""
@@ -569,14 +628,14 @@ class DefaultOpticalComponent(OpticalComponent):
             for layer in self.get_layers():
                 try:
                     intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
-                except NoIntersectionWarning:
+                except NoVectorIntersectionWarning:
                     intersection_point = None
 
                 intersection_point_is_inside = component.check_if_point_is_inside(point=intersection_point)
                 if intersection_point_is_inside:
                     found_intersections[id(layer)] = intersection_point
         if all(point is None for point in found_intersections.values()):
-            raise NoIntersectionWarning
+            raise NoVectorIntersectionWarning
         closest_point = _find_closest_intersection(approved_intersections=found_intersections.values(),
                                                    vector=vector)
 

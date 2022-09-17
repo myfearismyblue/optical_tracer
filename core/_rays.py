@@ -87,8 +87,8 @@ class PointCheckStrategy(BaseCheckStrategy):
     def _make_kwagrs_float(kwargs):
         for coord in kwargs.items():
             temp = float(coord[1])
-            if temp in (float('inf'), float('-inf')) or isnan(temp):
-                raise ValueError(f'Not allowed points at infinity: {coord}')
+            if isnan(temp):
+                raise ValueError(f'Not allowed Nan: {coord}')
             kwargs[coord[0]] = temp
         return kwargs
 
@@ -152,7 +152,6 @@ class VectorCheckStrategy(BaseCheckStrategy):
         kwargs = self.validate_w_length(kwargs)
         kwargs = self.validate_angles(kwargs)
         return kwargs
-
 
 
 class Point(ICheckable):
@@ -316,3 +315,4 @@ class Vector(ICheckable):
 
     def __repr__(self):
         return f'{self.__class__.__name__}: ({self.initial_point}), {self.lum}, {self.w_length}, {self.theta}, {self.psi}'
+

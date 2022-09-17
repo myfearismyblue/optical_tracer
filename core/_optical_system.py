@@ -10,7 +10,7 @@ from ._config import *
 from ._exceptions import (ComponentCollisionException,
                           VectorOutOfComponentException,
                           TotalInnerReflectionException,
-                          NoIntersectionWarning)
+                          NoVectorIntersectionWarning)
 from ._optical_component import (Material,
                                  OpticalComponent,
                                  DefaultOpticalComponent,
@@ -251,7 +251,7 @@ class OpticalSystem(IOpticalSystem):
             try:  # FIXME:  make this outer func.
                 current_vector, intersection_layer = current_component.propagate_vector(input_vector=current_vector,
                                                                                         components=self.components)
-            except NoIntersectionWarning:
+            except NoVectorIntersectionWarning:
                 if DEBUG:
                     print(f'Tracing is finished for vector: {self.rays[id(initial_vector)][0]}. '
                           f'Last point is {self.rays[id(initial_vector)][-1].initial_point}')

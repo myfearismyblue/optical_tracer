@@ -1,6 +1,7 @@
 __all__ = ['VectorOutOfComponentException',
            'VectorNotOnBoundaryException',
-           'NoIntersectionWarning',
+           'NoLayersIntersectionException',
+           'NoVectorIntersectionWarning',
            'TotalInnerReflectionException',
            'ComponentCollisionException',
            'ObjectKeyWordsMismatchException',
@@ -21,8 +22,13 @@ class VectorNotOnBoundaryException(DomainBaseException):
     pass
 
 
-class NoIntersectionWarning(DomainBaseException):
+class NoVectorIntersectionWarning(DomainBaseException):
     """Raises then vector doesn't intersect any surface"""
+    pass
+
+
+class NoLayersIntersectionException(DomainBaseException):
+    """Raises then layers doesn't have any intersections"""
     pass
 
 

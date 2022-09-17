@@ -3,3 +3,4 @@ venv/
 /tests/.coverage
 /.coverage
 /web_app/tracer/migrations/
+/_helpers.py
