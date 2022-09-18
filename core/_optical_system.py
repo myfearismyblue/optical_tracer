@@ -123,7 +123,7 @@ class OpticalSystem(IOpticalSystem):
         """Composes a list of layers which have opposite sides of all layers in opt system"""
         ret = []
         for component in self.components:
-            for layer in component.get_layers():
+            for layer in component.layers:
                 ret.append(layer.reverted_layer())
         return ret
 

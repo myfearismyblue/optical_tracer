@@ -435,7 +435,8 @@ class OpticalComponent:
     def delete_all_layers(self):
         self._layers = []
 
-    def get_layers(self):
+    @property
+    def layers(self):
         return self._layers
 
     @property
@@ -555,6 +556,11 @@ class OpticalComponent:
         """
         Finds curve segments of a Layer's boundary which are cut out by boundary of another Layer
         in case of layers' intersection. If no intersection found raises NoLayersIntersectionException.
+        For example: layer1.side = Side.Right; layer1.boundary = lambda y: y ** 2
+                     layer2.side = Side.Left; layer2.boundary = lambda y: 4
+                     _get_layer_segments(current_layer = layer1, bounding_layer = layer2) returns
+                     [(Point: x = 0.0, y = -1.9999999999999052, z = 3.9999999999996207,
+                     Point: x = 0.0, y = 2.000000000000096, z = 4.000000000000384)]
         @param current_layer: the layer of which the segments to be found
         @param bounding_layer: the layer which cuts out segments on the current_layer
         @return:a list of tuples of Points between which the segment of curve is bounded
@@ -563,6 +569,7 @@ class OpticalComponent:
         def _find_curve_intersections() -> List[Tuple[float, float]]:
             """
             Finds all points of intersection of two curves sorted in descending of y
+            If no intersecrions found returns []
             @param current_layer: the first layer with certain boundary
             @param bounding_layer: the second layer with certain boundary
             @return: List of intersections[ (float, float), ... ]
@@ -570,15 +577,39 @@ class OpticalComponent:
             current_curve: Callable = current_layer.boundary
             bounding_curve: Callable = bounding_layer.boundary
             equation: Callable = lambda y: current_curve(y) - bounding_curve(y)
-            ys: List[float] = sorted(list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS))), reverse=True)
-            if not ys:
+            try:
+                unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+            # fsolve behavior differs depending on the way of parallel lines' equation given.
+            # lambda y: 4 differs from lambda y: 4 + y * 0
+            except TypeError as fsolve_exception:
+                equation: Callable = lambda y: current_curve(y) - bounding_curve(y) + y * 0
+                try:
+                    unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+                except TypeError:
+                    raise TypeError from fsolve_exception
+
+            if not unfiltered_ys:
                 return []
+
+            # remove from found ys close duplicates and wrong values (fsolve sometimes has issues)
+            ys = []
+            while unfiltered_ys:
+                current_y = unfiltered_ys.pop()
+                # if wrong
+                if (current_curve(current_y) - bounding_curve(current_y)) ** 2 >= QUARTER_PART_IN_MM:
+                    continue
+                ys.append(current_y)
+                # if has close duplicates
+                unfiltered_ys = [y for y in filter(lambda item: abs(item - current_y) > QUARTER_PART_IN_MM, unfiltered_ys)]
+
+            ys.sort(reverse=True)
             zs: List[float] = [current_curve(y) for y in ys]
             return list(zip(ys, zs))  # all found curves' intersections sorted by y
 
         def _is_first_segment_starts_on_minus_inf():
             """In a case when intersection of layers starts on minus infinity"""
             # order of intersections is descending. let start from negative ys and proceed to positive ones
+            assert intersections[0] >= intersections[-1]
             first_intersection_point = Point(x=0, y=intersections[-1][0], z=intersections[-1][1])
             current_curve_tangential = current_layer.get_tangential_angle(point=first_intersection_point)
             bounding_curve_tangential = bounding_layer.get_tangential_angle(point=first_intersection_point)
@@ -604,8 +635,8 @@ class OpticalComponent:
             except IndexError:  # the last point remains without pair means, that last segment ends on +inf
                 second_point: Tuple[float, float] = (float('+inf'), current_layer.boundary(float('+inf')))
 
-            res.append((Point.set_coords(x=0, y=first_point[0], z=first_point[1]),
-                        Point.set_coords(x=0, y=second_point[0], z=second_point[1])))
+            res.append((Point(x=0, y=first_point[0], z=first_point[1]),
+                        Point(x=0, y=second_point[0], z=second_point[1])))
         return res
 
 
@@ -625,7 +656,7 @@ class DefaultOpticalComponent(OpticalComponent):
         # if not self.check_if_point_is_inside(point=vector.initial_point, components=components):
         #     raise VectorOutOfComponentException
         for component in components:  # use optsystem components to check if points are inside
-            for layer in self.get_layers():
+            for layer in self.layers:
                 try:
                     intersection_point: Optional[Point] = layer.get_layer_intersection(vector=vector)
                 except NoVectorIntersectionWarning:
