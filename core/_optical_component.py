@@ -436,6 +436,7 @@ class OpticalComponent:
 
     def add_layer(self, *, layer: Layer):
         self._layers.append(layer)
+        self._set_layers_segments()
 
     def delete_all_layers(self):
         self._layers = []
