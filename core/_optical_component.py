@@ -6,6 +6,7 @@ __all__ = ['ComponentCollision',
            'Side',
            'reversed_side', ]
 
+import bisect
 import ctypes as ct
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -217,6 +218,10 @@ class Layer(ICheckable):
     @property
     def intersection_points(self):
         return self._intersection_points
+
+    @intersection_points.setter
+    def intersection_points(self, val: List[Tuple[Point, Point]]):
+        self._intersection_points = val
 
     def contains_point(self, *, point: Point) -> bool:
         """
@@ -641,6 +646,76 @@ class OpticalComponent:
             res.append((Point(x=0, y=first_point[0], z=first_point[1]),
                         Point(x=0, y=second_point[0], z=second_point[1])))
         return res
+
+    def _set_layers_segments(self) -> None:
+        """
+        Between all layers in the component finds theirs mutual intersections
+        and sets segments of boundary for each layer which are constrained by other layer.
+        Sets layer.intersection_points attr
+        If only one layer is set in optical components, then sets its intersection_points attr from -inf to +inf
+        @return: None
+        """
+
+        def _set_points_on_infinities(layer:Layer) -> List[Tuple[Point, Point]]:
+            """Sets layer.intersection_points from -inf to +inf"""
+            equation: Callable = layer.boundary
+            layer.intersection_points = [(Point(x=0, y=float('-inf'), z=equation(float('-inf'))),
+                                          Point(x=0, y=float('+inf'), z=equation(float('+inf')))),]
+            return layer.intersection_points
+
+
+        if not self.layers:
+            return
+        if len(self.layers) == 1:
+            _set_points_on_infinities(self.layers[0])
+
+        for current_layer in self.layers:
+            left_ys: List[float] = []  # ordered list of all left ys of intersections between current layer and others
+            right_ys: List[float] = []  # the same for right points
+
+            current_layer_segments: List[Tuple[Point, Point]] = []
+
+            for bounding_layer in self.layers:
+                if current_layer is bounding_layer:
+                    continue
+                try:
+                    intersections: List[Tuple[Point, Point]] = self._get_layer_segments(current_layer=current_layer,bounding_layer=bounding_layer)  # all intersections between two layers here
+                except NoLayersIntersectionException:
+                    intersections = _set_points_on_infinities(current_layer)
+                    _set_points_on_infinities(bounding_layer)
+
+                # divise left and right point of each segment in different lists (only ys)
+                current_left_ys, current_right_ys = zip(*[(segment[0].y, segment[1].y) for segment in intersections])
+
+                # extend a whole list of such points for current layer
+                # with points of intersection for the bounding layer
+                left_ys.extend(current_left_ys)
+                right_ys.extend(current_right_ys)
+
+            left_ys.sort()
+            right_ys.sort()
+
+            # find pairs of the most close left ys and right ys
+            for right_bound in right_ys:
+                try:
+                    left_bound_idx = bisect.bisect_left(left_ys, right_bound) - 1
+                    if left_bound_idx < 0:
+                        raise IndexError(f'No left bound for current right bound {left_ys=}, {right_bound=:.2f}')
+                    left_bound_for_current_right_bound = left_ys[left_bound_idx]
+                except IndexError:
+                    continue  # left bound isn't found means that all points lefter are dropped while previous searching
+
+                # if left bound for current right bound is found than all point lefter should be dropped
+                left_ys = left_ys[left_bound_idx + 1:]
+                left_point: Point = Point(x=0,
+                                          y=left_bound_for_current_right_bound,
+                                          z=current_layer.boundary(left_bound_for_current_right_bound))
+                right_point: Point = Point(x=0,
+                                          y=right_bound,
+                                          z=current_layer.boundary(right_bound))
+                current_layer_segments.append((left_point, right_point))
+
+            current_layer.intersection_points = current_layer_segments
 
 
 class DefaultOpticalComponent(OpticalComponent):
