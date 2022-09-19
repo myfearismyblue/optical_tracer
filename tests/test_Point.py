@@ -3,16 +3,16 @@ import pytest
 from core import ObjectKeyWordsMismatchException, Point, UnspecifiedFieldException
 
 
-@pytest.mark.parametrize('coords, expected', [({'y': '10','x': -0 , 'z': 1.00000001}, {'x': 0, 'y': 10, 'z':1.00000001 })])
+@pytest.mark.parametrize('coords, expected',
+                         [({'y': '10','x': -0 , 'z': 1.00000001}, {'x': 0, 'y': 10, 'z':1.00000001}),
+                          ({'y': '+inf','x': -0, 'z': 1}, {'x': 0, 'y': float('inf'), 'z':1}),
+                          ({'y': '-inf','x': 'inf', 'z': '+inf'}, {'x': float('inf'), 'y': float('-inf'), 'z':float('inf') })])
 def test___init__(coords, expected):
     pt = Point(**coords)
     assert (pt.x, pt.y, pt.z == expected['x'], expected['y'], expected['z'])
 
 
-@pytest.mark.parametrize('coords, expected_exceptions', [({'y': '+inf','x': -0, 'z': 1}, ValueError),
-                                                         ({'y': 0,'x': 'inf', 'z': 1}, ValueError),
-                                                         ({'y': 0,'x': 0, 'z': '-inf'}, ValueError),
-                                                         ({'y': 0,'x': 'Wrong', 'z': '-inf'}, ValueError),
+@pytest.mark.parametrize('coords, expected_exceptions', [({'y': 0,'x': 'Wrong', 'z': '-inf'}, ValueError),
                                                          ({'y': 0,'x': 0, 'q': 999}, ObjectKeyWordsMismatchException),
                                                          ({'y': 0,'x': 0, 'z': 0, 'q': 999}, ObjectKeyWordsMismatchException),
                                                          ({'y': 0,'x': 0, }, ObjectKeyWordsMismatchException),
@@ -33,9 +33,7 @@ def test_set_coords(coords, expected, create_point):
 @pytest.mark.parametrize('coords, expected_exception', [({'y': "999999", 'z': 0}, ObjectKeyWordsMismatchException),
                                                         ({}, ObjectKeyWordsMismatchException),
                                                         ({'y': "999999", 'z': 0, 'x': 1, 'q': 'buz'}, ObjectKeyWordsMismatchException),
-                                                        ({'y': "-inf", 'z': 0, 'x': 1}, ValueError),
                                                         ({'y': [1], 'z': 0, 'x': 1}, TypeError),
-                                                        # ({'y': "0", 'z': 0, 'x': 1, 'x': 2, 'y':3, 'z':4}, ObjectKeyWordsMismatchException),
                                                         ({'y': "D", 'z': 0, 'x': 1,}, ValueError),
 
                                                         ]
