@@ -580,13 +580,16 @@ class OpticalComponent:
             try:
                 unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
             # fsolve behavior differs depending on the way of parallel lines' equation given.
-            # lambda y: 4 differs from lambda y: 4 + y * 0
+            # For example: lambda y: 4 differs from lambda y: 4 + y * 0
             except TypeError as fsolve_exception:
+                missmatch_message = "fsolve: there is a mismatch"
+                if missmatch_message not in fsolve_exception.args[0]:
+                    raise fsolve_exception
                 equation: Callable = lambda y: current_curve(y) - bounding_curve(y) + y * 0
                 try:
                     unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
                 except TypeError:
-                    raise TypeError from fsolve_exception
+                    raise fsolve_exception
 
             if not unfiltered_ys:
                 return []
@@ -596,7 +599,7 @@ class OpticalComponent:
             while unfiltered_ys:
                 current_y = unfiltered_ys.pop()
                 # if wrong
-                if (current_curve(current_y) - bounding_curve(current_y)) ** 2 >= QUARTER_PART_IN_MM:
+                if abs(current_curve(current_y) - bounding_curve(current_y)) >= QUARTER_PART_IN_MM:
                     continue
                 ys.append(current_y)
                 # if has close duplicates
