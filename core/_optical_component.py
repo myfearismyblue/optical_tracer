@@ -463,6 +463,14 @@ class OpticalComponent:
     def name(self, _val: str):
         self._name = _val
 
+    @property
+    def dimensions(self):
+        return self._dimensions
+
+    @dimensions.setter
+    def dimensions(self, val: Tuple[float]):
+        self._dimensions = val
+
     def check_if_point_is_inside(self, *, point: Point) -> bool:
         """Returns true if the given point is in the boundaries (including) of all layers of the component"""
         return all(layer.contains_point(point=point) for layer in self._layers)
@@ -557,8 +565,7 @@ class OpticalComponent:
         """Gets distance in mm and returns attenuation"""
         return 1 - (1 - self.material.transmittance * PERCENT) ** (distance * MILLIMETRE / CENTIMETRE)
 
-    @staticmethod
-    def _get_layer_segments(*, current_layer: Layer, bounding_layer: Layer) -> List[Tuple[Point, Point]]:
+    def _get_layer_segments(self, *, current_layer: Layer, bounding_layer: Layer) -> List[Tuple[Point, Point]]:
         """
         Finds curve segments of a Layer's boundary which are cut out by boundary of another Layer
         in case of layers' intersection. If no intersection found raises NoLayersIntersectionException.
@@ -584,7 +591,7 @@ class OpticalComponent:
             bounding_curve: Callable = bounding_layer.boundary
             equation: Callable = lambda y: current_curve(y) - bounding_curve(y)
             try:
-                unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+                unfiltered_ys: List[float] = list(fsolve(equation, np.array(self.dimensions)))
             # fsolve behavior differs depending on the way of parallel lines' equation given.
             # For example: lambda y: 4 differs from lambda y: 4 + y * 0
             except TypeError as fsolve_exception:
@@ -593,7 +600,7 @@ class OpticalComponent:
                     raise fsolve_exception
                 equation: Callable = lambda y: current_curve(y) - bounding_curve(y) + y * 0
                 try:
-                    unfiltered_ys: List[float] = list(fsolve(equation, np.array(OPT_SYS_DIMENSIONS)))
+                    unfiltered_ys: List[float] = list(fsolve(equation, np.array(self.dimensions)))
                 except TypeError:
                     raise fsolve_exception
 
