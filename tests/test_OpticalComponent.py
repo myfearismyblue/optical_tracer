@@ -1,3 +1,5 @@
+import itertools
+
 import pytest
 
 from pytest import approx
@@ -52,6 +54,23 @@ exp_except = [NoLayersIntersectionException,
 def test__get_layer_segments_exceptions(current_layer: Layer, bounding_layer: Layer, expected_exception):
     with pytest.raises(expected_exception):
         comp._get_layer_segments(current_layer=current_layer, bounding_layer=bounding_layer) == expected_exception
+
+
+def test__set_layers_segments(components_for_set_layers_segments, expected_for_set_layers_segments):
+    """
+    Test done for (see conftest):
+    1. z = y ** 2 side: right, z = 4 side:left, z = y +4 side: left
+    2. z = 4 side: right, z = 5 side: left
+    3. z = y + 4 side: right, z = y ** 3 + 3 * y ** 2 side: left
+    """
+    for comp, expected_comp in zip(components_for_set_layers_segments, expected_for_set_layers_segments):
+        for layer, expected_layer in zip(comp.layers, expected_comp.layers):
+            points = [*itertools.chain(*layer.intersection_points)]  # flatten [(p1, p2),(p3, p4)..]->[p1, p2, p3, p4..]
+            expected_points = [*itertools.chain(*expected_layer.intersection_points)]
+            for point, expected_point in zip(points, expected_points):
+                assert point.x == approx(expected_point.x, TOL)
+                assert point.y == approx(expected_point.y, TOL)
+                assert point.z == approx(expected_point.z, TOL)
 
 
 
