@@ -6,7 +6,7 @@ from typing import Union, Dict, Callable
 from warnings import warn
 
 from ._config import DEBUG, OPTICAL_RANGE
-from ._exceptions import ObjectKeyWordsMismatchException, UnspecifiedFieldException
+from ._exceptions import ObjectKeyWordsMismatchException, UnspecifiedFieldException, NanPointException
 
 
 class ICheckable(ABC):
@@ -213,7 +213,12 @@ def get_distance(point1: Point, point2: Point) -> float:
     """
     if not all((isinstance(point1, Point), isinstance(point2, Point))):
         raise UnspecifiedFieldException(f'Should be given Point cls, but was given: {type(point1), type(point2)}')
-    return sqrt((point1.x - point2.x) ** 2 + (point1.y - point2.y) ** 2 + (point1.z - point2.z) ** 2)
+    delta_x = point1.x - point2.x
+    delta_y = point1.y - point2.y
+    delta_z = point1.z - point2.z
+    if any((isnan(_) for _ in (delta_z, delta_y, delta_x))):
+        raise NanPointException(f'Nan calculated while managing with points: {point1, point2}')
+    return sqrt(delta_x ** 2 + delta_y ** 2 + delta_z ** 2)
 
 
 class Vector(ICheckable):

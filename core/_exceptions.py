@@ -5,30 +5,36 @@ __all__ = ['VectorOutOfComponentException',
            'TotalInnerReflectionException',
            'ComponentCollisionException',
            'ObjectKeyWordsMismatchException',
-           'UnspecifiedFieldException', ]
+           'UnspecifiedFieldException',
+           'NanPointException',]
 
 
 class DomainBaseException(Exception):
     """Base class for optical domain exceptions"""
 
 
+class NanPointException(DomainBaseException):
+    """Raises when Nan occures while calculating with Point cls"""
+    pass
+
+
 class VectorOutOfComponentException(DomainBaseException):
-    """Raises then coords of a vector are out of optical component which it was given"""
+    """Raises when coords of a vector are out of optical component which it was given"""
     pass
 
 
 class VectorNotOnBoundaryException(DomainBaseException):
-    """Raises then vector is supposed to be on the boundary of layer, but it is not"""
+    """Raises when vector is supposed to be on the boundary of layer, but it is not"""
     pass
 
 
 class NoVectorIntersectionWarning(DomainBaseException):
-    """Raises then vector doesn't intersect any surface"""
+    """Raises when vector doesn't intersect any surface"""
     pass
 
 
 class NoLayersIntersectionException(DomainBaseException):
-    """Raises then layers doesn't have any intersections"""
+    """Raises when layers doesn't have any intersections"""
     pass
 
 
