@@ -1,0 +1,65 @@
+{% extends 'tracer/base.html' %}
+
+{% block content%}
+{% load l10n %}         <!-- to change decimal divider from , to .-->
+
+<div class="container" style="margin-left: 1px;">
+    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasRight" aria-controls="offcanvasRight">Toggle menu</button>
+
+    <div class="offcanvas offcanvas-end" tabindex="-1" id="offcanvasRight" aria-labelledby="offcanvasRightLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="offcanvasRightLabel">Optical system input</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+      </div>
+      <div class="offcanvas-body">
+          <form method="post">
+              {% csrf_token %}
+              {{ choose_optical_system_form.as_p }}
+              <button class="btn btn-outline-success" type="submit">Выбрать систему</button>
+          </form>
+          <form method="post">
+              {% csrf_token %}
+              {{ add_component_form.as_p }}
+              <button class="btn btn-outline-success" type="submit">Добавить компонент</button>
+          </form>
+      </div>
+    </div>
+</div>
+
+<svg width="{{canvas_context.canvas_width}}" height="{{canvas_context.canvas_height}}">
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7"
+        refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" />
+        </marker>
+
+        <radialGradient id="Gradient1" cx="0%" cy="0%" r="100%">
+            <stop class="stop1" offset="0%"/>
+            <stop class="stop2" offset="100%"/>
+        </radialGradient>
+<!--        <linearGradient id="Gradient2" x1="0" x2="0" y1="0" y2="1">-->
+<!--            <stop offset="0%" stop-color="red"/>-->
+<!--            <stop offset="50%" stop-color="red" stop-opacity="0"/>-->
+<!--        </linearGradient>-->
+        <style type="text/css"><![CDATA[
+            .beam { stroke: url(#Gradient1); }
+            .stop1 { stop-color: red; }
+            .stop2 { stop-color: orange; stop-opacity: 10%; }
+        ]]></style>
+    </defs>
+
+    {% for line, points in boundaries_context.items %}
+        <polyline points="{{points}}" stroke="royalblue" fill="deepskyblue" />
+    {% endfor %}
+
+    {% for axis, points in axis_context.items %}
+        <polyline points="{{points}}" stroke="black" fill="none" marker-end="url(#arrowhead)" />
+    {% endfor %}
+
+    {% for beam, points in beams_context.items %}
+        <polyline class="beam" points="{{points}}"  fill="none" stroke-width="3" />
+    {% endfor %}
+
+</svg>
+
+{% endblock %}

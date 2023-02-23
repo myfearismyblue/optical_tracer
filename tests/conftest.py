@@ -1,6 +1,6 @@
 import pytest
 
-from optical_tracer import Layer, Material, OpticalComponent, OpticalSystem, Point, Side, Vector
+from core import Layer, Material, OpticalComponent, OpticalSystem, Point, Side, Vector
 
 
 @pytest.fixture
@@ -106,3 +106,87 @@ def create_parallel_slices_opt_sys():
     [opt_sys.add_component(component=med) for med in (first_medium, second_medium, third_medium, fourth_medium)]
     return opt_sys
 
+@pytest.fixture
+def components_for_set_layers_segments():
+    def create_first_comp():
+        left_bound = Layer(boundary=lambda y: y ** 2, side=Side.RIGHT, name='left_bound')
+        first_right_bound = Layer(boundary=lambda y: 4, side=Side.LEFT, name='first_right_bound')
+        second_right_bound = Layer(boundary=lambda y: y + 4, side=Side.LEFT, name='second_right_bound')
+        comp = OpticalComponent(name='Parabolic + two lines')
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        comp.add_layer(layer=second_right_bound)
+        comp._set_layers_segments()
+        return comp
+
+    def create_second_comp():
+        left_bound = Layer(boundary=lambda y: 4, side=Side.RIGHT, name='left_bound')
+        first_right_bound = Layer(boundary=lambda y: 5, side=Side.LEFT, name='first_right_bound')
+        comp = OpticalComponent(name='Parallel lines')
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        comp._set_layers_segments()
+        return comp
+
+    def create_third_comp():
+        left_bound = Layer(boundary=lambda y: 4 + y, side=Side.RIGHT, name='inclined')
+        first_right_bound = Layer(boundary=lambda y: y ** 3 + 3 * y ** 2, side=Side.LEFT, name='cubic')
+        comp = OpticalComponent(name='cubic', dimensions=[*range(-10, 10)])
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        comp._set_layers_segments()
+        return comp
+
+    ret = [create_first_comp()]
+    ret.append(create_second_comp())
+    ret.append(create_third_comp())
+    return ret
+
+@pytest.fixture
+def expected_for_set_layers_segments():
+    def create_first_expected_component():
+        left_bound = Layer(boundary=lambda y: y ** 2, side=Side.RIGHT, name='left_bound')
+        first_right_bound = Layer(boundary=lambda y: 4, side=Side.LEFT, name='first_right_bound')
+        second_right_bound = Layer(boundary=lambda y: y + 4, side=Side.LEFT, name='second_right_bound')
+        comp = OpticalComponent(name='Expected component')
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        comp.add_layer(layer=second_right_bound)
+        # first layer - parabolic y ** 2
+        comp.layers[0].intersection_points = [(Point(x=0, y=-1.562, z=2.438), Point(x=0, y=2, z=4))]
+        # second layer - parallel to y z=4
+        comp.layers[1].intersection_points = [(Point(x=0, y=0, z=4), Point(x=0, y=2, z=4))]
+        # third layer - inclined line z = y + 4
+        comp.layers[2].intersection_points = [(Point(x=0, y=-1.562, z=2.438), Point(x=0, y=0, z=4))]
+        return comp
+
+    def create_second_expected_component():
+        left_bound = Layer(boundary=lambda y: 4, side=Side.RIGHT, name='left_bound')
+        first_right_bound = Layer(boundary=lambda y: 5, side=Side.LEFT, name='first_right_bound')
+        comp = OpticalComponent(name='Parallel lines expected')
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        # first layer - left parallel
+        comp.layers[0].intersection_points = [(Point(x=0, y=float('-inf'), z=4), Point(x=0, y=float('+inf'), z=4))]
+        # second layer - right parallel
+        comp.layers[1].intersection_points = [(Point(x=0, y=float('-inf'), z=5), Point(x=0, y=float('+inf'), z=5))]
+        return comp
+
+    def create_third_expected_component():
+        left_bound = Layer(boundary=lambda y: 4 + y, side=Side.RIGHT, name='inclined')
+        first_right_bound = Layer(boundary=lambda y: y ** 3 + 3 * y ** 2, side=Side.LEFT, name='cubic')
+        comp = OpticalComponent(name='cubic')
+        comp.add_layer(layer=left_bound)
+        comp.add_layer(layer=first_right_bound)
+        # first layer - left inclined
+        comp.layers[0].intersection_points = [(Point(x=0, y=-2.861, z=1.139), Point(x=0, y=-1.254, z=2.746)),
+                                              (Point(x=0, y=1.115, z=5.115), Point(x=0, y=float('+inf'), z=float('+inf')))]
+        # second layer - right cubic
+        comp.layers[1].intersection_points = [(Point(x=0, y=-2.861, z=1.139), Point(x=0, y=-1.254, z=2.746)),
+                                              (Point(x=0, y=1.115, z=5.115), Point(x=0, y=float('+inf'), z=float('+inf')))]
+        return comp
+
+    ret = [create_first_expected_component()]
+    ret.append(create_second_expected_component())
+    ret.append(create_third_expected_component())
+    return ret

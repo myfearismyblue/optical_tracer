@@ -2,7 +2,7 @@ import tkinter as tk
 from math import pi, tan, sin
 from typing import Callable, Tuple, List
 
-from optical_tracer import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
+from core import Layer, OpticalComponent, Material, OpticalSystem, Side, Vector, Point
 
 DEBUG = False
 CANVAS_WIDTH = 800
@@ -205,7 +205,7 @@ class Grapher:
 
         def _fetch_boundaries():
             res = []
-            for comp in self._optical_system._components:
+            for comp in self._optical_system.components:
                 for l in comp._layers:
                     res.append(l.boundary)
             return res
@@ -226,7 +226,7 @@ class Grapher:
 
     def _draw_beams(self):
         """Draws beam lines on a canvas"""
-        for b in self._optical_system._vectors.values():
+        for b in self._optical_system._rays.values():
             assert isinstance(b, list)
             self._draw_beam(b)
 
